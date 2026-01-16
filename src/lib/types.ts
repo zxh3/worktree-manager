@@ -1,0 +1,79 @@
+/**
+ * Core types for the worktree manager
+ */
+
+/** Status indicators for worktrees */
+export type WorktreeStatus = "dirty" | "merged" | "behind" | "stale" | "orphan";
+
+/** Core worktree data from git */
+export interface Worktree {
+  /** Directory name of worktree */
+  name: string;
+  /** Absolute filesystem path */
+  path: string;
+  /** Git branch name (or HEAD commit if detached) */
+  branch: string | null;
+  /** HEAD commit hash */
+  head: string;
+  /** True if this is the main repo clone (has .git directory) */
+  isPrimary: boolean;
+  /** True if HEAD is detached */
+  isDetached: boolean;
+  /** True if worktree is locked */
+  isLocked: boolean;
+  /** True if worktree path is missing (prunable) */
+  isPrunable: boolean;
+}
+
+/** Worktree with computed status */
+export interface WorktreeWithStatus extends Worktree {
+  status: WorktreeStatus[];
+  /** Commits ahead of upstream/main */
+  ahead?: number;
+  /** Commits behind upstream/main */
+  behind?: number;
+}
+
+/** Options for creating a new worktree */
+export interface CreateWorktreeOptions {
+  /** Name for the worktree directory */
+  name: string;
+  /** Branch to create or checkout */
+  branch?: string;
+  /** Base ref to branch from (for new branches) */
+  base?: string;
+  /** Track a remote branch instead of creating new */
+  track?: string;
+  /** Create worktree with detached HEAD */
+  detach?: boolean;
+}
+
+/** Options for removing a worktree */
+export interface RemoveWorktreeOptions {
+  /** Force removal even if dirty */
+  force?: boolean;
+  /** Also delete the branch */
+  deleteBranch?: boolean;
+}
+
+/** Result of a git operation */
+export interface GitResult {
+  success: boolean;
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+}
+
+/** Repository information */
+export interface RepoInfo {
+  /** Absolute path to the git directory */
+  gitDir: string;
+  /** Absolute path to the worktree root */
+  worktreeRoot: string;
+  /** Whether this is the primary worktree */
+  isPrimary: boolean;
+  /** Remote origin URL (if available) */
+  remoteUrl: string | null;
+  /** Derived repository ID */
+  repoId: string;
+}
