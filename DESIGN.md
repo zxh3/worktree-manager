@@ -881,19 +881,19 @@ jobs:
 
 ### Phase 1: MVP (Core CLI)
 
-- [ ] Project setup (Bun, TypeScript, package.json)
-- [ ] Git worktree detection and parsing
-- [ ] `wt new <name>` - create worktree
-- [ ] `wt rm <name>` - remove worktree
-- [ ] `wt mv <old> <new>` - rename worktree
-- [ ] `wt ls` - list worktrees
-- [ ] `wt cd <name>` - output path
-- [ ] `wt current` - print current worktree
-- [ ] Basic configuration (~/.config/wt/config.json)
-- [ ] Shell integration (`wt shell-init`)
-- [ ] Prompt integration (`--prompt` flag for shell-init)
-- [ ] Unit tests for lib modules (paths, config, git parsing)
-- [ ] Integration tests for all CLI commands
+- [x] Project setup (Bun, TypeScript, package.json)
+- [x] Git worktree detection and parsing
+- [x] `wt new <name>` - create worktree
+- [x] `wt rm <name>` - remove worktree
+- [x] `wt mv <old> <new>` - rename worktree
+- [x] `wt ls` - list worktrees
+- [x] `wt cd <name>` - output path
+- [x] `wt current` - print current worktree
+- [x] Basic configuration (~/.config/wt/config.json)
+- [x] Shell integration (`wt shell-init`)
+- [x] Prompt integration (`--prompt` flag for shell-init)
+- [x] Unit tests for lib modules (paths, config, git parsing)
+- [x] Integration tests for all CLI commands
 - [ ] GitHub Actions CI (Linux, macOS, Windows)
 
 ### Phase 2: TUI
