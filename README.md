@@ -6,7 +6,7 @@ A fast, simple CLI for managing git worktrees.
 
 ```bash
 # npm
-npm install -g gitworktree
+npm install -g @kianax/wt
 
 # Or build from source (requires Bun)
 bun install && bun run build
