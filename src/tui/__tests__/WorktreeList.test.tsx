@@ -140,7 +140,7 @@ describe("WorktreeList", () => {
       />,
     );
 
-    // Current worktree (non-primary) should have ● indicator
-    expect(lastFrame()).toContain("●");
+    // Current worktree (non-primary) should have * indicator
+    expect(lastFrame()).toContain("*");
   });
 });

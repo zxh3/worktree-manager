@@ -8,6 +8,7 @@ import { formatAge, getCommitInfo } from "../../lib/git/log";
 import { contractHome } from "../../lib/paths";
 import type { WorktreeWithStatus } from "../../lib/types";
 import { theme } from "../theme";
+import { COLUMNS, formatRow } from "./columns";
 
 interface WorktreeItemProps {
   worktree: WorktreeWithStatus;
@@ -35,11 +36,9 @@ export function WorktreeItem({
       });
   }, [worktree.path]);
 
-  const cursor = isSelected ? ">" : " ";
-  const icon = isCurrent ? "●" : "○";
   const path = contractHome(worktree.path);
 
-  // Determine status badge (primary no longer overrides - show actual status)
+  // Determine status badge
   let statusBadge = "";
   let statusColor: string | undefined;
 
@@ -67,56 +66,56 @@ export function WorktreeItem({
   }
 
   // Truncate path if too long
-  const maxPathLen = 32;
   const displayPath =
-    path.length > maxPathLen ? `...${path.slice(-(maxPathLen - 3))}` : path;
+    path.length > COLUMNS.path ? `...${path.slice(-(COLUMNS.path - 3))}` : path;
 
-  // Get ahead/behind for sync indicators
-  const { ahead, behind } = worktree;
-
-  // Column widths (exported for header alignment)
-  // cursor(1) + space(1) + icon(1) + space(1) = 4 chars before name
-  // name: 20 chars (includes space for " (*)" primary indicator)
-  // gap: 2 chars
-  // path: 32 chars
-  // gap: 2 chars
-  // age: 4 chars
-  // gap: 2 chars
-  // status: 8 chars
-
-  // Name column: 20 chars total, includes space for " *" primary indicator
-  const nameWidth = 20;
+  // Build name with primary indicator
   const primarySuffix = worktree.isPrimary ? " *" : "";
-  const maxNameLen = nameWidth - primarySuffix.length;
-  const truncatedName = worktree.name.slice(0, maxNameLen);
-  const namePadding = " ".repeat(
-    nameWidth - truncatedName.length - primarySuffix.length,
-  );
-  const pathStr = displayPath.padEnd(32);
-  const ageStr = (age || "").padEnd(4);
-  const statusStr = statusBadge.padEnd(8);
+  const maxNameLen = COLUMNS.name - primarySuffix.length;
+  const displayName = worktree.name.slice(0, maxNameLen) + primarySuffix;
+
+  // Build ahead/behind suffix
+  const { ahead, behind } = worktree;
+  let syncSuffix = "";
+  if (ahead !== undefined && ahead > 0) syncSuffix += `+${ahead}`;
+  if (behind !== undefined && behind > 0) syncSuffix += `-${behind}`;
+
+  // Format the full row as a single string for consistent alignment
+  const rowText = formatRow({
+    cursor: isSelected ? ">" : "",
+    icon: isCurrent ? "*" : "",
+    name: displayName,
+    path: displayPath,
+    age: age || "",
+    status: statusBadge,
+    suffix: syncSuffix,
+  });
+
+  // Render with colors applied to specific sections
+  const cursorEnd = COLUMNS.cursor;
+  const iconEnd = cursorEnd + COLUMNS.icon;
+  const nameEnd = iconEnd + COLUMNS.name;
+  const pathEnd = nameEnd + COLUMNS.path;
+  const ageEnd = pathEnd + COLUMNS.age;
+  const statusEnd = ageEnd + COLUMNS.status;
 
   return (
     <Box>
-      <Text color={isSelected ? theme.accent : undefined}>{cursor} </Text>
-      <Text color={isCurrent ? theme.accent : "dim"}>{icon}</Text>
       <Text color={isSelected ? theme.accent : undefined}>
-        {" "}
-        {truncatedName}
+        {rowText.slice(0, cursorEnd)}
       </Text>
-      {worktree.isPrimary && (
-        <Text color={theme.status.primary}>{primarySuffix}</Text>
-      )}
-      <Text>{namePadding}</Text>
-      <Text dimColor> {pathStr}</Text>
-      <Text dimColor> {ageStr}</Text>
-      <Text color={statusColor}> {statusStr}</Text>
-      {ahead !== undefined && ahead > 0 && (
-        <Text color={theme.ui.success}>↑{ahead}</Text>
-      )}
-      {behind !== undefined && behind > 0 && (
-        <Text color={theme.status.behind}>↓{behind}</Text>
-      )}
+      <Text color={isCurrent ? theme.accent : "dim"}>
+        {rowText.slice(cursorEnd, iconEnd)}
+      </Text>
+      <Text color={isSelected ? theme.accent : undefined}>
+        {rowText.slice(iconEnd, nameEnd)}
+      </Text>
+      <Text dimColor>{rowText.slice(nameEnd, pathEnd)}</Text>
+      <Text dimColor>{rowText.slice(pathEnd, ageEnd)}</Text>
+      <Text color={statusColor}>{rowText.slice(ageEnd, statusEnd)}</Text>
+      <Text color={ahead && ahead > 0 ? theme.ui.success : theme.status.behind}>
+        {rowText.slice(statusEnd)}
+      </Text>
     </Box>
   );
 }

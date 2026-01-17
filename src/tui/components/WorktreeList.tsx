@@ -5,6 +5,7 @@
 import { Box, Text, useStdout } from "ink";
 import type { WorktreeWithStatus } from "../../lib/types";
 import { VERSION } from "../../lib/version";
+import { formatHeader } from "./columns";
 import { WorktreeItem } from "./WorktreeItem";
 
 interface WorktreeListProps {
@@ -61,17 +62,7 @@ export function WorktreeList({
       <Box>
         <Text dimColor>{"│"}</Text>
         <Box width={boxWidth - 2}>
-          {/* Header spacing matches WorktreeItem: cursor(1)+space(1)+icon(1)+space(1)+name(20)+gap(2)+path(32)+gap(2)+age(4)+gap(2)+status(8) */}
-          <Text dimColor>
-            {"    "}
-            {"name".padEnd(20)}
-            {"  "}
-            {"path".padEnd(32)}
-            {"  "}
-            {"age".padEnd(4)}
-            {"  "}
-            {"status".padEnd(8)}
-          </Text>
+          <Text dimColor>{formatHeader()}</Text>
         </Box>
         <Text dimColor>{"│"}</Text>
       </Box>
