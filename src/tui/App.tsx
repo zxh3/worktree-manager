@@ -71,13 +71,13 @@ export function App({ repoName, currentPath, onSelect }: AppProps) {
     (input, key) => {
       if (activeDialog !== "none") return;
 
-      // Navigation
+      // Navigation (wrap around)
       if (input === "j" || key.downArrow) {
-        setSelectedIndex((i) => Math.min(i + 1, worktrees.length - 1));
+        setSelectedIndex((i) => (i + 1) % worktrees.length);
         return;
       }
       if (input === "k" || key.upArrow) {
-        setSelectedIndex((i) => Math.max(i - 1, 0));
+        setSelectedIndex((i) => (i - 1 + worktrees.length) % worktrees.length);
         return;
       }
 
