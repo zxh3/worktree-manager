@@ -1,5 +1,5 @@
 {
-  "name": "wt",
+  "name": "worktree-cli",
   "version": "0.1.0",
   "description": "Git worktree manager - make worktrees as effortless as branches",
   "type": "module",

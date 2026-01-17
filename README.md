@@ -5,10 +5,11 @@ A fast, simple CLI for managing git worktrees.
 ## Install
 
 ```bash
-# Build from source (requires Bun)
-bun install && bun run build
+# npm
+npm install -g worktree-cli
 
-# Add to PATH
+# Or build from source (requires Bun)
+bun install && bun run build
 cp wt /usr/local/bin/
 ```
 
