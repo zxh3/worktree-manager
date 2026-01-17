@@ -3,13 +3,16 @@
  */
 
 import chalk from "chalk";
-import type { Worktree } from "../lib/types";
 import { contractHome } from "../lib/paths";
+import type { Worktree } from "../lib/types";
 
 /**
  * Format a worktree for display
  */
-export function formatWorktree(wt: Worktree, options?: { showPath?: boolean }): string {
+export function formatWorktree(
+  wt: Worktree,
+  options?: { showPath?: boolean },
+): string {
   const parts: string[] = [];
 
   // Status indicator
@@ -34,10 +37,7 @@ export function formatWorktree(wt: Worktree, options?: { showPath?: boolean }): 
     parts.push(chalk.dim(contractHome(wt.path)));
   }
 
-  // Flags
-  if (wt.isPrimary) {
-    parts.push(chalk.blue("primary"));
-  }
+  // Flags (primary indicated by ● icon, not text badge)
   if (wt.isLocked) {
     parts.push(chalk.red("locked"));
   }

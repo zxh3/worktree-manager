@@ -3,33 +3,16 @@
  */
 
 import type { GitResult } from "../lib/types";
+import { execCommand } from "./compat";
 
 /**
  * Execute a command and return the result
  */
 export async function exec(
   command: string[],
-  options?: { cwd?: string }
+  options?: { cwd?: string },
 ): Promise<GitResult> {
-  const proc = Bun.spawn(command, {
-    cwd: options?.cwd,
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-
-  const [stdout, stderr] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-  ]);
-
-  const exitCode = await proc.exited;
-
-  return {
-    success: exitCode === 0,
-    stdout: stdout.trim(),
-    stderr: stderr.trim(),
-    exitCode,
-  };
+  return execCommand(command, options);
 }
 
 /**
@@ -37,7 +20,7 @@ export async function exec(
  */
 export async function git(
   args: string[],
-  options?: { cwd?: string }
+  options?: { cwd?: string },
 ): Promise<GitResult> {
   return exec(["git", ...args], options);
 }
@@ -47,7 +30,7 @@ export async function git(
  */
 export async function gitOrThrow(
   args: string[],
-  options?: { cwd?: string }
+  options?: { cwd?: string },
 ): Promise<string> {
   const result = await git(args, options);
   if (!result.success) {

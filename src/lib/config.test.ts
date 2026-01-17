@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { ConfigSchema, LocalConfigSchema, DEFAULT_CONFIG } from "./config";
+import { ConfigSchema, DEFAULT_CONFIG, LocalConfigSchema } from "./config";
 
 describe("ConfigSchema", () => {
   test("accepts valid full config", () => {
@@ -29,7 +29,9 @@ describe("ConfigSchema", () => {
     if (result.success) {
       expect(result.data.paths.strategy).toBe("centralized");
       expect(result.data.defaults.branchPrefix).toBe("feature/");
-      expect(result.data.repos?.["github.com-user-repo"]?.branchPrefix).toBe("wip/");
+      expect(result.data.repos?.["github.com-user-repo"]?.branchPrefix).toBe(
+        "wip/",
+      );
     }
   });
 

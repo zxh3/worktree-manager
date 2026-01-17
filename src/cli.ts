@@ -5,9 +5,8 @@
  * Make git worktrees as effortless as branches.
  */
 
-import { ls, newWorktree, rm, mv, cd, current, shellInit } from "./commands";
-
-const VERSION = "0.1.0";
+import { cd, current, ls, mv, newWorktree, rm, shellInit } from "./commands";
+import { VERSION } from "./lib/version";
 
 const HELP = `
 wt - Git worktree manager
@@ -132,10 +131,12 @@ async function main() {
 
   // Route to command
   switch (command) {
-    case "":
-      // No command - show help for now (TUI coming in Phase 2)
-      console.log(HELP);
+    case "": {
+      // No command - launch TUI
+      const { launchTui } = await import("./tui");
+      await launchTui();
       break;
+    }
 
     case "ls":
     case "list":

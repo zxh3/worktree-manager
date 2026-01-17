@@ -2,17 +2,22 @@
  * wt new - Create a new worktree
  */
 
-import { createWorktree, findWorktree } from "../lib/git/worktree";
-import { getRepoInfo, isInsideGitRepo } from "../lib/git/repo";
 import { getConfig } from "../lib/config";
+import {
+  MAX_NAME_LENGTH,
+  RESERVED_NAMES,
+  VALID_NAME_REGEX,
+} from "../lib/constants";
+import { getRepoInfo, isInsideGitRepo } from "../lib/git/repo";
+import { createWorktree, findWorktree } from "../lib/git/worktree";
 import { resolveWorktreePath } from "../lib/paths";
-import { formatError, formatSuccess, formatHint } from "../utils/format";
+import type { CreateWorktreeOptions } from "../lib/types";
 import {
   NotInRepoError,
-  WorktreeExistsError,
   parseGitError,
+  WorktreeExistsError,
 } from "../utils/errors";
-import type { CreateWorktreeOptions } from "../lib/types";
+import { formatError, formatHint, formatSuccess } from "../utils/format";
 
 export interface NewOptions {
   base?: string;
@@ -23,8 +28,28 @@ export interface NewOptions {
 
 export async function newWorktree(
   name: string,
-  options: NewOptions = {}
+  options: NewOptions = {},
 ): Promise<void> {
+  // Validate worktree name
+  if (!name || !VALID_NAME_REGEX.test(name)) {
+    console.error(
+      formatError(
+        "Invalid worktree name. Use only alphanumeric characters, hyphens, and underscores.",
+      ),
+    );
+    process.exit(1);
+  }
+  if (name.length > MAX_NAME_LENGTH) {
+    console.error(
+      formatError(`Worktree name too long (max ${MAX_NAME_LENGTH} characters)`),
+    );
+    process.exit(1);
+  }
+  if (RESERVED_NAMES.includes(name as (typeof RESERVED_NAMES)[number])) {
+    console.error(formatError(`"${name}" is a reserved name`));
+    process.exit(1);
+  }
+
   // Check if we're in a git repo
   if (!(await isInsideGitRepo())) {
     console.error(formatError(new NotInRepoError().message));
@@ -51,11 +76,15 @@ export async function newWorktree(
     // Get config for branch prefix
     const { branchPrefix, worktreeBase } = await getConfig(
       repoInfo.worktreeRoot,
-      repoInfo.repoId
+      repoInfo.repoId,
     );
 
     // Determine worktree path
-    const worktreePath = resolveWorktreePath(repoInfo.repoId, name, worktreeBase);
+    const worktreePath = resolveWorktreePath(
+      repoInfo.repoId,
+      name,
+      worktreeBase,
+    );
 
     // Determine branch name
     const branchName = options.branch || `${branchPrefix}${name}`;
@@ -81,7 +110,9 @@ export async function newWorktree(
     console.log(formatSuccess(`Created worktree '${name}'`));
     console.log(formatHint(`cd to it with: wt cd ${name}`));
   } catch (error) {
-    console.error(formatError(error instanceof Error ? error.message : String(error)));
+    console.error(
+      formatError(error instanceof Error ? error.message : String(error)),
+    );
     process.exit(1);
   }
 }

@@ -2,10 +2,10 @@
  * Git repository detection and information
  */
 
-import { resolve, dirname } from "path";
+import { resolve } from "node:path";
 import { git } from "../../utils/exec";
-import type { RepoInfo } from "../types";
 import { deriveRepoId } from "../paths";
+import type { RepoInfo } from "../types";
 
 /**
  * Check if we're inside a git repository

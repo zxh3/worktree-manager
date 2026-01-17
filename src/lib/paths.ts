@@ -2,9 +2,9 @@
  * Path resolution and repository ID derivation
  */
 
-import { createHash } from "crypto";
-import { basename, join } from "path";
-import { homedir } from "os";
+import { createHash } from "node:crypto";
+import { homedir } from "node:os";
+import { basename, join } from "node:path";
 
 /** Default base directory for worktrees */
 export const DEFAULT_WORKTREE_BASE = join(homedir(), ".worktrees");
@@ -19,7 +19,7 @@ export const DEFAULT_WORKTREE_BASE = join(homedir(), ".worktrees");
  */
 export function deriveRepoId(
   remoteUrl: string | null,
-  fallbackPath: string
+  fallbackPath: string,
 ): string {
   if (remoteUrl) {
     return deriveRepoIdFromUrl(remoteUrl);
@@ -60,13 +60,23 @@ export function deriveRepoIdFromPath(dirPath: string): string {
 }
 
 /**
- * Resolve the worktree path for a given worktree name
+ * Resolve the worktree path for a given worktree name.
+ * Validates the name to prevent path traversal attacks.
  */
 export function resolveWorktreePath(
   repoId: string,
   worktreeName: string,
-  baseDir: string = DEFAULT_WORKTREE_BASE
+  baseDir: string = DEFAULT_WORKTREE_BASE,
 ): string {
+  // Validate worktree name to prevent path traversal
+  if (
+    !worktreeName ||
+    worktreeName.includes("..") ||
+    worktreeName.includes("/") ||
+    worktreeName.startsWith(".")
+  ) {
+    throw new Error(`Invalid worktree name: ${worktreeName}`);
+  }
   return join(baseDir, repoId, worktreeName);
 }
 
@@ -91,8 +101,8 @@ export function contractHome(path: string): string {
   if (path === home) {
     return "~";
   }
-  if (path.startsWith(home + "/")) {
-    return "~" + path.slice(home.length);
+  if (path.startsWith(`${home}/`)) {
+    return `~${path.slice(home.length)}`;
   }
   return path;
 }

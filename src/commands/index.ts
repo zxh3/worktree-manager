@@ -2,10 +2,10 @@
  * CLI commands - re-export all
  */
 
-export { ls, type LsOptions } from "./ls";
-export { newWorktree, type NewOptions } from "./new";
-export { rm, type RmOptions } from "./rm";
-export { mv } from "./mv";
 export { cd } from "./cd";
-export { current, type CurrentOptions } from "./current";
-export { shellInit, type ShellInitOptions } from "./shell-init";
+export { type CurrentOptions, current } from "./current";
+export { type LsOptions, ls } from "./ls";
+export { mv } from "./mv";
+export { type NewOptions, newWorktree } from "./new";
+export { type RmOptions, rm } from "./rm";
+export { type ShellInitOptions, shellInit } from "./shell-init";

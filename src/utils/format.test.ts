@@ -4,10 +4,7 @@
 
 import { describe, expect, test } from "bun:test";
 import type { Worktree } from "../lib/types";
-import {
-  formatWorktreesJson,
-  formatWorktreesPorcelain,
-} from "./format";
+import { formatWorktreesJson, formatWorktreesPorcelain } from "./format";
 
 const mockPrimaryWorktree: Worktree = {
   path: "/Users/dev/repo",
@@ -82,7 +79,10 @@ describe("formatWorktreesJson", () => {
   });
 
   test("formats multiple worktrees", () => {
-    const result = formatWorktreesJson([mockPrimaryWorktree, mockSecondaryWorktree]);
+    const result = formatWorktreesJson([
+      mockPrimaryWorktree,
+      mockSecondaryWorktree,
+    ]);
     const parsed = JSON.parse(result);
 
     expect(parsed).toHaveLength(2);
@@ -143,7 +143,10 @@ describe("formatWorktreesPorcelain", () => {
   });
 
   test("separates worktrees with blank line", () => {
-    const result = formatWorktreesPorcelain([mockPrimaryWorktree, mockSecondaryWorktree]);
+    const result = formatWorktreesPorcelain([
+      mockPrimaryWorktree,
+      mockSecondaryWorktree,
+    ]);
 
     // Should have a blank line between worktrees
     expect(result).toMatch(/main\n\nworktree/);

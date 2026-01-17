@@ -12,6 +12,7 @@ bun.lockb
 # IDE
 .idea/
 .vscode/
+.claude/
 *.swp
 *.swo
 
@@ -25,3 +26,6 @@ coverage/
 # Environment
 .env
 .env.local
+
+# Internal docs
+docs/

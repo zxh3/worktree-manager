@@ -6,7 +6,7 @@ import { describe, expect, test } from "bun:test";
 import { parseWorktreeList } from "./worktree";
 
 describe("parseWorktreeList", () => {
-  test("parses single worktree (primary)", () => {
+  test("parses single worktree", () => {
     const output = `worktree /Users/dev/repo
 HEAD abc123def456
 branch refs/heads/main`;
@@ -22,7 +22,7 @@ branch refs/heads/main`;
       isDetached: false,
       isLocked: false,
       isPrunable: false,
-      isPrimary: true,
+      // Note: isPrimary is determined by listWorktrees, not parseWorktreeList
     });
   });
 
@@ -38,10 +38,9 @@ branch refs/heads/feature`;
     const result = parseWorktreeList(output);
 
     expect(result).toHaveLength(2);
-    expect(result[0].isPrimary).toBe(true);
+    // Note: isPrimary is determined by listWorktrees via checkPrimaryWorktree
     expect(result[0].name).toBe("repo");
     expect(result[0].branch).toBe("main");
-    expect(result[1].isPrimary).toBe(false);
     expect(result[1].name).toBe("feature");
     expect(result[1].branch).toBe("feature");
   });

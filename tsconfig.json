@@ -14,7 +14,8 @@
     "outDir": "./dist",
     "types": ["bun-types"],
     "lib": ["ESNext"],
-    "noEmit": true
+    "noEmit": true,
+    "jsx": "react-jsx"
   },
   "include": ["src/**/*", "tests/**/*"],
   "exclude": ["node_modules", "dist"]

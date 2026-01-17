@@ -2,20 +2,30 @@
  * Configuration loading and validation
  */
 
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { z } from "zod";
-import { join } from "path";
-import { homedir } from "os";
+import { fileExists, readFileText, writeFileText } from "../utils/compat";
 import { expandHome } from "./paths";
 
 /** Global config file path */
-export const GLOBAL_CONFIG_PATH = join(homedir(), ".config", "wt", "config.json");
+export const GLOBAL_CONFIG_PATH = join(
+  homedir(),
+  ".config",
+  "wt",
+  "config.json",
+);
 
 /** Repo-local config file name */
 export const LOCAL_CONFIG_FILE = ".wtrc.json";
 
 /** Schema for per-repo overrides */
 const RepoOverrideSchema = z.object({
-  branchPrefix: z.string().optional(),
+  branchPrefix: z
+    .string()
+    .max(30)
+    .regex(/^[a-zA-Z0-9_/-]*$/, "Invalid branch prefix format")
+    .optional(),
   base: z.string().optional(),
 });
 
@@ -26,14 +36,14 @@ export const ConfigSchema = z.object({
       strategy: z.enum(["centralized", "sibling"]).default("centralized"),
       base: z.string().default("~/.worktrees"),
     })
-    .default({}),
+    .default({ strategy: "centralized", base: "~/.worktrees" }),
   defaults: z
     .object({
       branchPrefix: z.string().default(""),
       staleDays: z.number().default(30),
     })
-    .default({}),
-  repos: z.record(RepoOverrideSchema).optional(),
+    .default({ branchPrefix: "", staleDays: 30 }),
+  repos: z.record(z.string(), RepoOverrideSchema).optional(),
 });
 
 /** Schema for repo-local configuration */
@@ -65,11 +75,10 @@ export const DEFAULT_CONFIG: Config = {
  */
 async function loadJsonFile<T>(path: string): Promise<T | null> {
   try {
-    const file = Bun.file(path);
-    if (!(await file.exists())) {
+    if (!(await fileExists(path))) {
       return null;
     }
-    const content = await file.text();
+    const content = await readFileText(path);
     return JSON.parse(content) as T;
   } catch {
     return null;
@@ -97,7 +106,9 @@ export async function loadGlobalConfig(): Promise<Config> {
 /**
  * Load repo-local configuration
  */
-export async function loadLocalConfig(repoRoot: string): Promise<LocalConfig | null> {
+export async function loadLocalConfig(
+  repoRoot: string,
+): Promise<LocalConfig | null> {
   const path = join(repoRoot, LOCAL_CONFIG_FILE);
   const raw = await loadJsonFile<unknown>(path);
   if (!raw) {
@@ -118,7 +129,7 @@ export async function loadLocalConfig(repoRoot: string): Promise<LocalConfig | n
  */
 export async function getConfig(
   repoRoot: string,
-  repoId: string
+  repoId: string,
 ): Promise<{
   config: Config;
   localConfig: LocalConfig | null;
@@ -140,9 +151,7 @@ export async function getConfig(
     config.defaults.branchPrefix;
 
   // Determine worktree base directory (repo override > global)
-  const worktreeBase = expandHome(
-    repoOverride?.base ?? config.paths.base
-  );
+  const worktreeBase = expandHome(repoOverride?.base ?? config.paths.base);
 
   return {
     config,
@@ -156,11 +165,7 @@ export async function getConfig(
  * Save global configuration
  */
 export async function saveGlobalConfig(config: Config): Promise<void> {
-  const dir = join(homedir(), ".config", "wt");
-  await Bun.write(
-    GLOBAL_CONFIG_PATH,
-    JSON.stringify(config, null, 2)
-  );
+  await writeFileText(GLOBAL_CONFIG_PATH, JSON.stringify(config, null, 2));
 }
 
 /**
@@ -173,6 +178,6 @@ export async function initLocalConfig(repoRoot: string): Promise<string> {
       branchPrefix: "",
     },
   };
-  await Bun.write(path, JSON.stringify(defaultLocal, null, 2));
+  await writeFileText(path, JSON.stringify(defaultLocal, null, 2));
   return path;
 }

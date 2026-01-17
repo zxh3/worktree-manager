@@ -8,6 +8,8 @@ export interface ShellInitOptions {
 
 const BASH_ZSH_WRAPPER = `
 # wt shell integration
+export WT_SHELL_INTEGRATION=1
+
 wt() {
     case "$1" in
         cd)
@@ -21,8 +23,9 @@ wt() {
             local exit_code=$?
 
             # Check for cd handoff (TUI selection)
+            # Output format is __wt_cd__"/path/to/dir" (quoted to handle spaces)
             if [[ "$output" == __wt_cd__* ]]; then
-                cd "\${output#__wt_cd__}"
+                eval cd "\${output#__wt_cd__}"
             elif [[ -n "$output" ]]; then
                 echo "$output"
             fi
@@ -58,6 +61,8 @@ __wt_prompt() {
 
 const FISH_WRAPPER = `
 # wt shell integration for fish
+set -gx WT_SHELL_INTEGRATION 1
+
 function wt
     switch $argv[1]
         case cd
@@ -68,8 +73,10 @@ function wt
             set -l exit_code $status
 
             # Check for cd handoff
+            # Output format is __wt_cd__"/path/to/dir" (quoted to handle spaces)
             if string match -q '__wt_cd__*' -- $output
-                cd (string replace '__wt_cd__' '' -- $output)
+                set -l path (string replace '__wt_cd__' '' -- $output | string trim -c '"')
+                cd $path
             else if test -n "$output"
                 echo $output
             end
@@ -107,14 +114,14 @@ export function shellInit(shell: string, options: ShellInitOptions = {}): void {
     case "zsh":
       output = BASH_ZSH_WRAPPER;
       if (options.prompt) {
-        output += "\n\n" + BASH_ZSH_PROMPT;
+        output += `\n\n${BASH_ZSH_PROMPT}`;
       }
       break;
 
     case "fish":
       output = FISH_WRAPPER;
       if (options.prompt) {
-        output += "\n\n" + FISH_PROMPT;
+        output += `\n\n${FISH_PROMPT}`;
       }
       break;
 

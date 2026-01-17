@@ -2,10 +2,17 @@
  * wt current - Show current worktree information
  */
 
-import { getWorktreeNameFromPath, findWorktreeByPath } from "../lib/git/worktree";
-import { getWorktreeRoot, getCurrentBranch, isInsideGitRepo } from "../lib/git/repo";
-import { formatError } from "../utils/format";
+import {
+  getCurrentBranch,
+  getWorktreeRoot,
+  isInsideGitRepo,
+} from "../lib/git/repo";
+import {
+  findWorktreeByPath,
+  getWorktreeNameFromPath,
+} from "../lib/git/worktree";
 import { NotInRepoError } from "../utils/errors";
+import { formatError } from "../utils/format";
 
 export interface CurrentOptions {
   path?: boolean;
@@ -22,6 +29,7 @@ export async function current(options: CurrentOptions = {}): Promise<void> {
   try {
     const worktreeRoot = await getWorktreeRoot();
     if (!worktreeRoot) {
+      console.error(formatError("Could not determine worktree root"));
       process.exit(1);
     }
 
@@ -42,6 +50,7 @@ export async function current(options: CurrentOptions = {}): Promise<void> {
         if (worktree) {
           console.log(worktree.head.slice(0, 7));
         } else {
+          console.error(formatError("Could not find worktree information"));
           process.exit(1);
         }
       }
@@ -64,9 +73,12 @@ export async function current(options: CurrentOptions = {}): Promise<void> {
     }
 
     // Not in a worktree
+    console.error(formatError("Not inside a worktree"));
     process.exit(1);
   } catch (error) {
-    console.error(formatError(error instanceof Error ? error.message : String(error)));
+    console.error(
+      formatError(error instanceof Error ? error.message : String(error)),
+    );
     process.exit(1);
   }
 }

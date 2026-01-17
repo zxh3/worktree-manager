@@ -2,18 +2,18 @@
  * wt mv - Move/rename a worktree
  */
 
-import { moveWorktree, findWorktree } from "../lib/git/worktree";
-import { getRepoInfo, isInsideGitRepo } from "../lib/git/repo";
 import { getConfig } from "../lib/config";
+import { getRepoInfo, isInsideGitRepo } from "../lib/git/repo";
+import { findWorktree, moveWorktree } from "../lib/git/worktree";
 import { resolveWorktreePath } from "../lib/paths";
-import { formatError, formatSuccess, formatHint } from "../utils/format";
 import {
-  NotInRepoError,
-  WorktreeNotFoundError,
-  WorktreeExistsError,
   CannotRemovePrimaryError,
+  NotInRepoError,
   parseGitError,
+  WorktreeExistsError,
+  WorktreeNotFoundError,
 } from "../utils/errors";
+import { formatError, formatHint, formatSuccess } from "../utils/format";
 
 export async function mv(oldName: string, newName: string): Promise<void> {
   // Check if we're in a git repo
@@ -58,7 +58,7 @@ export async function mv(oldName: string, newName: string): Promise<void> {
 
     const { worktreeBase } = await getConfig(
       repoInfo.worktreeRoot,
-      repoInfo.repoId
+      repoInfo.repoId,
     );
 
     // Determine new path
@@ -76,7 +76,9 @@ export async function mv(oldName: string, newName: string): Promise<void> {
 
     console.log(formatSuccess(`Renamed worktree '${oldName}' to '${newName}'`));
   } catch (error) {
-    console.error(formatError(error instanceof Error ? error.message : String(error)));
+    console.error(
+      formatError(error instanceof Error ? error.message : String(error)),
+    );
     process.exit(1);
   }
 }

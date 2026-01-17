@@ -47,7 +47,8 @@ describe("CLI integration tests", () => {
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain("repo");
-      expect(result.stdout).toContain("primary");
+      // Primary indicated by ● icon, not text badge
+      expect(result.stdout).toContain("●");
     });
 
     test("outputs JSON when --json flag is used", async () => {

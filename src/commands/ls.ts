@@ -2,15 +2,15 @@
  * wt ls - List all worktrees
  */
 
-import { listWorktrees } from "../lib/git/worktree";
 import { isInsideGitRepo } from "../lib/git/repo";
+import { listWorktrees } from "../lib/git/worktree";
+import { NotInRepoError } from "../utils/errors";
 import {
+  formatError,
   formatWorktreeList,
   formatWorktreesJson,
   formatWorktreesPorcelain,
-  formatError,
 } from "../utils/format";
-import { NotInRepoError } from "../utils/errors";
 
 export interface LsOptions {
   json?: boolean;
@@ -36,7 +36,9 @@ export async function ls(options: LsOptions = {}): Promise<void> {
       console.log(formatWorktreeList(worktrees));
     }
   } catch (error) {
-    console.error(formatError(error instanceof Error ? error.message : String(error)));
+    console.error(
+      formatError(error instanceof Error ? error.message : String(error)),
+    );
     process.exit(1);
   }
 }

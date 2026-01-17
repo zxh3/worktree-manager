@@ -2,8 +2,28 @@
  * Core types for the worktree manager
  */
 
-/** Status indicators for worktrees */
-export type WorktreeStatus = "dirty" | "merged" | "behind" | "stale" | "orphan";
+/**
+ * Status indicators for worktrees - organized by category
+ */
+
+/** Sync status relative to origin/main */
+export type SyncStatus = "synced" | "ahead" | "behind" | "diverged";
+
+/** Worktree condition (independent of sync status) */
+export type WorktreeCondition = "dirty" | "merged" | "stale" | "orphan";
+
+/** All possible worktree statuses */
+export type WorktreeStatus = SyncStatus | WorktreeCondition;
+
+/** All valid status values as a const array (useful for iteration) */
+export const SYNC_STATUSES = ["synced", "ahead", "behind", "diverged"] as const;
+export const WORKTREE_CONDITIONS = [
+  "dirty",
+  "merged",
+  "stale",
+  "orphan",
+] as const;
+export const ALL_STATUSES = [...SYNC_STATUSES, ...WORKTREE_CONDITIONS] as const;
 
 /** Core worktree data from git */
 export interface Worktree {
@@ -40,6 +60,8 @@ export interface CreateWorktreeOptions {
   name: string;
   /** Branch to create or checkout */
   branch?: string;
+  /** Use an existing branch instead of creating new */
+  existingBranch?: string;
   /** Base ref to branch from (for new branches) */
   base?: string;
   /** Track a remote branch instead of creating new */

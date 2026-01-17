@@ -2,16 +2,21 @@
  * wt rm - Remove a worktree
  */
 
-import { removeWorktree, findWorktree } from "../lib/git/worktree";
 import { isInsideGitRepo } from "../lib/git/repo";
-import { git } from "../utils/exec";
-import { formatError, formatSuccess, formatHint, formatWarning } from "../utils/format";
+import { findWorktree, removeWorktree } from "../lib/git/worktree";
 import {
-  NotInRepoError,
-  WorktreeNotFoundError,
   CannotRemovePrimaryError,
+  NotInRepoError,
   parseGitError,
+  WorktreeNotFoundError,
 } from "../utils/errors";
+import { git } from "../utils/exec";
+import {
+  formatError,
+  formatHint,
+  formatSuccess,
+  formatWarning,
+} from "../utils/format";
 
 export interface RmOptions {
   force?: boolean;
@@ -60,21 +65,34 @@ export async function rm(name: string, options: RmOptions = {}): Promise<void> {
     // Handle branch deletion
     if (worktree.branch) {
       if (options.deleteBranch) {
-        // Try to delete the branch
-        const deleteResult = await git(["branch", "-d", worktree.branch]);
+        // Use -D (force) if --force was passed, otherwise -d (safe)
+        const deleteFlag = options.force ? "-D" : "-d";
+        const deleteResult = await git(["branch", deleteFlag, worktree.branch]);
         if (deleteResult.success) {
           console.log(formatSuccess(`Deleted branch '${worktree.branch}'`));
         } else {
           // Branch might have unmerged changes, warn but don't fail
-          console.log(formatWarning(`Could not delete branch '${worktree.branch}': ${deleteResult.stderr}`));
-          console.log(formatHint(`Force delete with: git branch -D ${worktree.branch}`));
+          console.log(
+            formatWarning(
+              `Could not delete branch '${worktree.branch}': ${deleteResult.stderr}`,
+            ),
+          );
+          console.log(
+            formatHint(`Force delete with: git branch -D ${worktree.branch}`),
+          );
         }
       } else {
-        console.log(formatHint(`Branch '${worktree.branch}' was not deleted. Delete it with: git branch -d ${worktree.branch}`));
+        console.log(
+          formatHint(
+            `Branch '${worktree.branch}' was not deleted. Delete it with: git branch -d ${worktree.branch}`,
+          ),
+        );
       }
     }
   } catch (error) {
-    console.error(formatError(error instanceof Error ? error.message : String(error)));
+    console.error(
+      formatError(error instanceof Error ? error.message : String(error)),
+    );
     process.exit(1);
   }
 }

@@ -2,20 +2,25 @@
  * Git worktree operations
  */
 
-import { basename } from "path";
-import { git, gitOrThrow } from "../../utils/exec";
+import { stat } from "node:fs/promises";
+import { basename } from "node:path";
+import { fileExists, readFileText } from "../../utils/compat";
+import { git } from "../../utils/exec";
 import type {
-  Worktree,
   CreateWorktreeOptions,
-  RemoveWorktreeOptions,
   GitResult,
+  RemoveWorktreeOptions,
+  Worktree,
 } from "../types";
 
 /**
  * Parse git worktree list --porcelain output into Worktree objects
+ * Note: isPrimary is set to false here, should be determined by checkPrimaryWorktree()
  */
-export function parseWorktreeList(output: string): Worktree[] {
-  const worktrees: Worktree[] = [];
+export function parseWorktreeList(
+  output: string,
+): Omit<Worktree, "isPrimary">[] {
+  const worktrees: Omit<Worktree, "isPrimary">[] = [];
   const blocks = output.split("\n\n").filter((block) => block.trim());
 
   for (const block of blocks) {
@@ -43,23 +48,37 @@ export function parseWorktreeList(output: string): Worktree[] {
       } else if (line === "prunable") {
         worktree.isPrunable = true;
       } else if (line === "bare") {
-        // Skip bare repositories
-        continue;
       }
     }
 
     if (worktree.path && worktree.head) {
-      worktrees.push(worktree as Worktree);
+      worktrees.push(worktree as Omit<Worktree, "isPrimary">);
     }
   }
 
-  // Mark the first worktree as primary (it's always listed first)
-  // Actually, we need to determine which is primary based on gitdir
-  return worktrees.map((wt, index) => ({
-    ...wt,
-    // The first worktree in the list is the primary (main repo)
-    isPrimary: index === 0,
-  }));
+  return worktrees;
+}
+
+/**
+ * Check if a worktree path is the primary worktree.
+ * Primary worktree has .git as a directory, secondary has .git as a file.
+ */
+async function checkPrimaryWorktree(worktreePath: string): Promise<boolean> {
+  try {
+    const gitPath = `${worktreePath}/.git`;
+
+    // Check if .git exists and what type it is
+    try {
+      const gitStat = await stat(gitPath);
+      // If .git is a directory, it's the primary worktree
+      // If .git is a file, it's a secondary worktree (contains gitdir pointer)
+      return gitStat.isDirectory();
+    } catch {
+      return false;
+    }
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -70,7 +89,17 @@ export async function listWorktrees(cwd?: string): Promise<Worktree[]> {
   if (!result.success) {
     throw new Error(result.stderr || "Failed to list worktrees");
   }
-  return parseWorktreeList(result.stdout);
+  const worktrees = parseWorktreeList(result.stdout);
+
+  // Determine which worktree is primary by checking .git type
+  const withPrimary = await Promise.all(
+    worktrees.map(async (wt) => ({
+      ...wt,
+      isPrimary: await checkPrimaryWorktree(wt.path),
+    })),
+  );
+
+  return withPrimary;
 }
 
 /**
@@ -78,7 +107,7 @@ export async function listWorktrees(cwd?: string): Promise<Worktree[]> {
  */
 export async function findWorktree(
   name: string,
-  cwd?: string
+  cwd?: string,
 ): Promise<Worktree | null> {
   const worktrees = await listWorktrees(cwd);
   return worktrees.find((wt) => wt.name === name) || null;
@@ -89,7 +118,7 @@ export async function findWorktree(
  */
 export async function findWorktreeByPath(
   path: string,
-  cwd?: string
+  cwd?: string,
 ): Promise<Worktree | null> {
   const worktrees = await listWorktrees(cwd);
   return worktrees.find((wt) => wt.path === path) || null;
@@ -101,7 +130,7 @@ export async function findWorktreeByPath(
 export async function createWorktree(
   path: string,
   options: CreateWorktreeOptions,
-  cwd?: string
+  cwd?: string,
 ): Promise<GitResult> {
   const args = ["worktree", "add"];
 
@@ -109,7 +138,11 @@ export async function createWorktree(
     args.push("--detach");
   }
 
-  if (options.track) {
+  if (options.existingBranch) {
+    // Use an existing branch (no -b flag)
+    args.push(path);
+    args.push(options.existingBranch);
+  } else if (options.track) {
     // Track a remote branch
     args.push("--track", "-b", options.branch || options.name);
     args.push(path);
@@ -139,7 +172,8 @@ export async function createWorktree(
 export async function removeWorktree(
   pathOrName: string,
   options: RemoveWorktreeOptions = {},
-  cwd?: string
+  cwd?: string,
+  branchName?: string,
 ): Promise<GitResult> {
   const args = ["worktree", "remove"];
 
@@ -151,11 +185,11 @@ export async function removeWorktree(
 
   const result = await git(args, { cwd });
 
-  // Optionally delete the branch too
-  if (result.success && options.deleteBranch) {
-    // Find the worktree to get the branch name
-    // Note: worktree is already removed, so we can't query it
-    // The caller should handle branch deletion separately if needed
+  // Delete the branch too (if provided and removal succeeded)
+  if (result.success && branchName) {
+    // Try to delete the branch (use -d for safe delete, only if merged)
+    await git(["branch", "-d", branchName], { cwd });
+    // If -d fails (not merged), we silently ignore - user can force delete manually
   }
 
   return result;
@@ -167,7 +201,7 @@ export async function removeWorktree(
 export async function moveWorktree(
   oldPath: string,
   newPath: string,
-  cwd?: string
+  cwd?: string,
 ): Promise<GitResult> {
   return git(["worktree", "move", oldPath, newPath], { cwd });
 }
@@ -178,7 +212,7 @@ export async function moveWorktree(
 export async function lockWorktree(
   path: string,
   reason?: string,
-  cwd?: string
+  cwd?: string,
 ): Promise<GitResult> {
   const args = ["worktree", "lock"];
   if (reason) {
@@ -193,7 +227,7 @@ export async function lockWorktree(
  */
 export async function unlockWorktree(
   path: string,
-  cwd?: string
+  cwd?: string,
 ): Promise<GitResult> {
   return git(["worktree", "unlock", path], { cwd });
 }
@@ -209,12 +243,12 @@ export async function pruneWorktrees(cwd?: string): Promise<GitResult> {
  * Get the worktree name from a path (extracts from .git file for worktrees)
  */
 export async function getWorktreeNameFromPath(
-  dirPath: string
+  dirPath: string,
 ): Promise<string | null> {
   try {
-    const gitFile = Bun.file(`${dirPath}/.git`);
-    if (await gitFile.exists()) {
-      const content = await gitFile.text();
+    const gitPath = `${dirPath}/.git`;
+    if (await fileExists(gitPath)) {
+      const content = await readFileText(gitPath);
       // File content: gitdir: /path/to/main/.git/worktrees/<name>
       const match = content.match(/worktrees\/([^/\s]+)/);
       if (match) {

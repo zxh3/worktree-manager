@@ -3,51 +3,51 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { homedir } from "os";
+import { homedir } from "node:os";
 import {
-  deriveRepoId,
-  deriveRepoIdFromUrl,
-  deriveRepoIdFromPath,
-  resolveWorktreePath,
-  expandHome,
   contractHome,
   DEFAULT_WORKTREE_BASE,
+  deriveRepoId,
+  deriveRepoIdFromPath,
+  deriveRepoIdFromUrl,
+  expandHome,
+  resolveWorktreePath,
 } from "./paths";
 
 describe("deriveRepoIdFromUrl", () => {
   test("extracts repo id from SSH remote", () => {
     expect(deriveRepoIdFromUrl("git@github.com:user/repo.git")).toBe(
-      "github.com-user-repo"
+      "github.com-user-repo",
     );
   });
 
   test("extracts repo id from SSH remote without .git suffix", () => {
     expect(deriveRepoIdFromUrl("git@github.com:user/repo")).toBe(
-      "github.com-user-repo"
+      "github.com-user-repo",
     );
   });
 
   test("extracts repo id from HTTPS remote", () => {
     expect(deriveRepoIdFromUrl("https://github.com/user/repo")).toBe(
-      "github.com-user-repo"
+      "github.com-user-repo",
     );
   });
 
   test("extracts repo id from HTTPS remote with .git suffix", () => {
     expect(deriveRepoIdFromUrl("https://github.com/user/repo.git")).toBe(
-      "github.com-user-repo"
+      "github.com-user-repo",
     );
   });
 
   test("handles nested paths in SSH format", () => {
     expect(deriveRepoIdFromUrl("git@gitlab.com:org/team/repo.git")).toBe(
-      "gitlab.com-org-team-repo"
+      "gitlab.com-org-team-repo",
     );
   });
 
   test("handles nested paths in HTTPS format", () => {
     expect(deriveRepoIdFromUrl("https://gitlab.com/org/team/repo")).toBe(
-      "gitlab.com-org-team-repo"
+      "gitlab.com-org-team-repo",
     );
   });
 
@@ -79,7 +79,7 @@ describe("deriveRepoIdFromPath", () => {
 describe("deriveRepoId", () => {
   test("uses URL when available", () => {
     expect(deriveRepoId("git@github.com:user/repo.git", "/fallback")).toBe(
-      "github.com-user-repo"
+      "github.com-user-repo",
     );
   });
 
@@ -91,7 +91,11 @@ describe("deriveRepoId", () => {
 
 describe("resolveWorktreePath", () => {
   test("joins base, repo id, and worktree name", () => {
-    const result = resolveWorktreePath("github.com-user-repo", "feature", "/base");
+    const result = resolveWorktreePath(
+      "github.com-user-repo",
+      "feature",
+      "/base",
+    );
     expect(result).toBe("/base/github.com-user-repo/feature");
   });
 
