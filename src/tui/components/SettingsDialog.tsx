@@ -23,8 +23,10 @@ type FieldId =
   | "paths.base"
   | "defaults.branchPrefix"
   | "defaults.staleDays"
+  | "defaults.comparisonBranch"
   | `repos.${string}.branchPrefix`
   | `repos.${string}.base`
+  | `repos.${string}.comparisonBranch`
   | "addRepo";
 
 const FIELD_ORDER: FieldId[] = [
@@ -32,6 +34,7 @@ const FIELD_ORDER: FieldId[] = [
   "paths.base",
   "defaults.branchPrefix",
   "defaults.staleDays",
+  "defaults.comparisonBranch",
 ];
 
 const STRATEGIES = ["centralized", "sibling"] as const;
@@ -61,7 +64,12 @@ export function SettingsDialog({
   const allFields: FieldId[] = [
     ...FIELD_ORDER,
     ...repoOverrideIds.flatMap(
-      (id) => [`repos.${id}.branchPrefix`, `repos.${id}.base`] as FieldId[],
+      (id) =>
+        [
+          `repos.${id}.branchPrefix`,
+          `repos.${id}.base`,
+          `repos.${id}.comparisonBranch`,
+        ] as FieldId[],
     ),
     "addRepo",
   ];
@@ -77,9 +85,13 @@ export function SettingsDialog({
       return config.defaults.branchPrefix;
     if (fieldId === "defaults.staleDays")
       return String(config.defaults.staleDays);
+    if (fieldId === "defaults.comparisonBranch")
+      return config.defaults.comparisonBranch ?? "";
 
     // Repo override fields
-    const match = fieldId.match(/^repos\.(.+)\.(branchPrefix|base)$/);
+    const match = fieldId.match(
+      /^repos\.(.+)\.(branchPrefix|base|comparisonBranch)$/,
+    );
     if (match) {
       const [, repoId, field] = match;
       const repoConfig = config.repos?.[repoId];
@@ -110,9 +122,16 @@ export function SettingsDialog({
       if (!Number.isNaN(num) && num > 0) {
         newConfig.defaults = { ...newConfig.defaults, staleDays: num };
       }
+    } else if (fieldId === "defaults.comparisonBranch") {
+      newConfig.defaults = {
+        ...newConfig.defaults,
+        comparisonBranch: value || undefined,
+      };
     } else {
       // Repo override fields
-      const match = fieldId.match(/^repos\.(.+)\.(branchPrefix|base)$/);
+      const match = fieldId.match(
+        /^repos\.(.+)\.(branchPrefix|base|comparisonBranch)$/,
+      );
       if (match) {
         const [, repoIdMatch, field] = match;
         newConfig.repos = {
@@ -136,7 +155,7 @@ export function SettingsDialog({
       ...config,
       repos: {
         ...config.repos,
-        [id]: { branchPrefix: "", base: "" },
+        [id]: { branchPrefix: "", base: "", comparisonBranch: "" },
       },
     };
     setConfig(newConfig);
@@ -364,6 +383,13 @@ export function SettingsDialog({
           isEditing={editMode && selectedField === "defaults.staleDays"}
           editValue={editValue}
         />
+        <FieldRow
+          label="Compare branch"
+          value={config.defaults.comparisonBranch || "(auto)"}
+          isSelected={selectedField === "defaults.comparisonBranch"}
+          isEditing={editMode && selectedField === "defaults.comparisonBranch"}
+          editValue={editValue}
+        />
       </Box>
 
       {/* Repository Overrides Section */}
@@ -391,6 +417,15 @@ export function SettingsDialog({
                 value={config.repos?.[id]?.base || "(none)"}
                 isSelected={selectedField === `repos.${id}.base`}
                 isEditing={editMode && selectedField === `repos.${id}.base`}
+                editValue={editValue}
+              />
+              <FieldRow
+                label="compareBranch"
+                value={config.repos?.[id]?.comparisonBranch || "(auto)"}
+                isSelected={selectedField === `repos.${id}.comparisonBranch`}
+                isEditing={
+                  editMode && selectedField === `repos.${id}.comparisonBranch`
+                }
                 editValue={editValue}
               />
             </Box>

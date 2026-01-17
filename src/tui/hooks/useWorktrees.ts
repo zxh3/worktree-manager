@@ -3,6 +3,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getConfig } from "../../lib/config";
+import { getRepoInfo } from "../../lib/git/repo";
 import { getWorktreeStatus } from "../../lib/git/status";
 import { listWorktrees } from "../../lib/git/worktree";
 import type { WorktreeWithStatus } from "../../lib/types";
@@ -28,6 +30,21 @@ export function useWorktrees() {
         primaryPathRef.current = primary.path;
       }
 
+      // Get configured comparison branch from config
+      let configuredComparisonBranch: string | undefined;
+      try {
+        const repoInfo = await getRepoInfo();
+        if (repoInfo) {
+          const { comparisonBranch } = await getConfig(
+            repoInfo.worktreeRoot,
+            repoInfo.repoId,
+          );
+          configuredComparisonBranch = comparisonBranch;
+        }
+      } catch {
+        // Ignore config errors, use auto-detection
+      }
+
       // First, set worktrees without status (fast initial render)
       const initialWorktrees: WorktreeWithStatus[] = list.map((wt) => ({
         ...wt,
@@ -40,12 +57,17 @@ export function useWorktrees() {
       const withStatus: WorktreeWithStatus[] = await Promise.all(
         list.map(async (wt) => {
           try {
-            const statusResult = await getWorktreeStatus(wt.path, wt.branch);
+            const statusResult = await getWorktreeStatus(
+              wt.path,
+              wt.branch,
+              configuredComparisonBranch,
+            );
             return {
               ...wt,
               status: statusResult.status,
               ahead: statusResult.ahead,
               behind: statusResult.behind,
+              comparisonBranch: statusResult.comparisonBranch,
             };
           } catch {
             return { ...wt, status: [] };

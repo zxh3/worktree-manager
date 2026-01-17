@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { ConfigSchema, DEFAULT_CONFIG, LocalConfigSchema } from "./config";
+import { ConfigSchema, DEFAULT_CONFIG } from "./config";
 
 describe("ConfigSchema", () => {
   test("accepts valid full config", () => {
@@ -98,36 +98,6 @@ describe("ConfigSchema", () => {
     if (result.success) {
       expect(result.data.paths.strategy).toBe("sibling");
     }
-  });
-});
-
-describe("LocalConfigSchema", () => {
-  test("accepts valid local config", () => {
-    const config = {
-      defaults: {
-        branchPrefix: "local/",
-      },
-    };
-
-    const result = LocalConfigSchema.safeParse(config);
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.defaults?.branchPrefix).toBe("local/");
-    }
-  });
-
-  test("accepts empty config", () => {
-    const result = LocalConfigSchema.safeParse({});
-    expect(result.success).toBe(true);
-  });
-
-  test("accepts config with empty defaults", () => {
-    const config = {
-      defaults: {},
-    };
-
-    const result = LocalConfigSchema.safeParse(config);
-    expect(result.success).toBe(true);
   });
 });
 

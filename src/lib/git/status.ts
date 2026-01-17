@@ -14,6 +14,7 @@ export interface WorktreeStatusResult {
   status: WorktreeStatus[];
   ahead?: number;
   behind?: number;
+  comparisonBranch?: string;
 }
 
 /**
@@ -22,10 +23,12 @@ export interface WorktreeStatusResult {
 export async function getWorktreeStatus(
   worktreePath: string,
   branch: string | null,
+  configuredBranch?: string,
 ): Promise<WorktreeStatusResult> {
   const status: WorktreeStatus[] = [];
   let ahead: number | undefined;
   let behind: number | undefined;
+  let actualComparisonBranch: string | undefined;
 
   // Check for uncommitted changes (dirty)
   const statusResult = await git(["status", "--porcelain"], {
@@ -38,7 +41,10 @@ export async function getWorktreeStatus(
   // Check ahead/behind using remote-first comparison (origin/main > local main)
   if (branch) {
     const mainBranch = await getMainBranch(worktreePath);
-    const comparisonBranch = await getComparisonBranch(worktreePath);
+    // Use configured branch if provided and valid, otherwise auto-detect
+    const comparisonBranch = configuredBranch
+      ? await verifyBranch(worktreePath, configuredBranch)
+      : await getComparisonBranch(worktreePath);
 
     if (comparisonBranch) {
       // Determine if this is the primary worktree (on main/master branch)
@@ -48,6 +54,9 @@ export async function getWorktreeStatus(
       const hasRemoteComparison = comparisonBranch.startsWith("origin/");
 
       if (!isPrimaryWorktree || hasRemoteComparison) {
+        // Store the comparison branch used
+        actualComparisonBranch = comparisonBranch;
+
         // Calculate ahead/behind for all branches against comparison branch
         const aheadBehindResult = await git(
           ["rev-list", "--left-right", "--count", `${comparisonBranch}...HEAD`],
@@ -116,7 +125,7 @@ export async function getWorktreeStatus(
     }
   }
 
-  return { status, ahead, behind };
+  return { status, ahead, behind, comparisonBranch: actualComparisonBranch };
 }
 
 /**
@@ -158,4 +167,20 @@ async function getComparisonBranch(cwd: string): Promise<string | null> {
   }
 
   return null;
+}
+
+/**
+ * Verify that a configured branch exists.
+ * Returns the branch name if valid, otherwise falls back to auto-detection.
+ */
+async function verifyBranch(
+  cwd: string,
+  branch: string,
+): Promise<string | null> {
+  const result = await git(["rev-parse", "--verify", branch], { cwd });
+  if (result.success) {
+    return branch;
+  }
+  // Fall back to auto-detection if configured branch doesn't exist
+  return getComparisonBranch(cwd);
 }

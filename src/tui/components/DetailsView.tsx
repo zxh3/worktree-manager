@@ -101,6 +101,9 @@ export function DetailsView({ worktree, onClose, onSelect }: DetailsViewProps) {
             {worktree.ahead === 0 && worktree.behind === 0 && (
               <Text>up to date</Text>
             )}
+            {worktree.comparisonBranch && (
+              <Text dimColor> (vs {worktree.comparisonBranch})</Text>
+            )}
           </Box>
         )}
 

@@ -57,7 +57,7 @@ User input → Command handler → Git operations (`lib/git/*`) → Output (CLI)
 - **Git interaction**: Shell out to `git` via `Bun.spawn()`, parse `--porcelain` output
 - **TUI renders to stderr**: stdout is reserved for shell integration (`__wt_cd__<path>` marker)
 - **Worktree storage**: `~/.worktrees/<repo-id>/<name>/` where repo-id is derived from remote URL
-- **Config**: Global at `~/.config/wt/config.json`, per-repo at `.wtrc.json` (Zod validated)
+- **Config**: Single file at `~/.config/wt/config.json` with `repos` for per-repo overrides (Zod validated)
 
 ### Testing
 

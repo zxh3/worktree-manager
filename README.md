@@ -109,28 +109,23 @@ The repo ID is derived from your git remote URL (e.g., `github.com-user-repo`).
 
 ## Configuration
 
-**Global config** at `~/.config/wt/config.json`:
+All configuration is in `~/.config/wt/config.json`:
 
 ```json
 {
   "defaults": {
     "branchPrefix": "feature/",
     "staleDays": 30
+  },
+  "repos": {
+    "github.com-user-repo": {
+      "branchPrefix": "feat/"
+    }
   }
 }
 ```
 
-**Per-repo config** at `.wtrc.json` in your repository:
-
-```json
-{
-  "defaults": {
-    "branchPrefix": "feat/"
-  }
-}
-```
-
-Local config takes precedence over global config.
+Use `repos` to override settings for specific repositories (keyed by repo ID).
 
 ## License
 

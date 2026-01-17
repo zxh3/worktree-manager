@@ -52,6 +52,8 @@ export interface WorktreeWithStatus extends Worktree {
   ahead?: number;
   /** Commits behind upstream/main */
   behind?: number;
+  /** Branch used for sync status comparison (e.g., origin/main or main) */
+  comparisonBranch?: string;
 }
 
 /** Options for creating a new worktree */
