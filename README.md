@@ -6,7 +6,7 @@ A fast, simple CLI for managing git worktrees.
 
 ```bash
 # npm
-npm install -g gitwt
+npm install -g gitworktree
 
 # Or build from source (requires Bun)
 bun install && bun run build
