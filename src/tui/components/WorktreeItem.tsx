@@ -8,7 +8,7 @@ import { formatAge, getCommitInfo } from "../../lib/git/log";
 import { contractHome } from "../../lib/paths";
 import type { WorktreeWithStatus } from "../../lib/types";
 import { theme } from "../theme";
-import { COLUMNS, formatRow } from "./columns";
+import { COLUMNS, formatRow, GAP } from "./columns";
 
 interface WorktreeItemProps {
   worktree: WorktreeWithStatus;
@@ -83,7 +83,7 @@ export function WorktreeItem({
   // Format the full row as a single string for consistent alignment
   const rowText = formatRow({
     cursor: isSelected ? ">" : "",
-    icon: isCurrent ? "*" : "",
+    icon: isCurrent ? "●" : "○",
     name: displayName,
     path: displayPath,
     age: age || "",
@@ -92,12 +92,13 @@ export function WorktreeItem({
   });
 
   // Render with colors applied to specific sections
+  // Account for gaps between columns
   const cursorEnd = COLUMNS.cursor;
   const iconEnd = cursorEnd + COLUMNS.icon;
   const nameEnd = iconEnd + COLUMNS.name;
-  const pathEnd = nameEnd + COLUMNS.path;
-  const ageEnd = pathEnd + COLUMNS.age;
-  const statusEnd = ageEnd + COLUMNS.status;
+  const pathEnd = nameEnd + GAP + COLUMNS.path;
+  const ageEnd = pathEnd + GAP + COLUMNS.age;
+  const statusEnd = ageEnd + GAP + COLUMNS.status;
 
   return (
     <Box>

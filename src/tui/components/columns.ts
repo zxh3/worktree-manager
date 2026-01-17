@@ -28,12 +28,16 @@ export function formatRow(parts: {
 }): string {
   const { cursor, icon, name, path, age, status, suffix = "" } = parts;
 
+  const gap = " ".repeat(GAP);
   return [
     cursor.padEnd(COLUMNS.cursor),
     icon.padEnd(COLUMNS.icon),
     name.padEnd(COLUMNS.name),
+    gap,
     path.padEnd(COLUMNS.path),
+    gap,
     age.padEnd(COLUMNS.age),
+    gap,
     status.padEnd(COLUMNS.status),
     suffix,
   ].join("");
