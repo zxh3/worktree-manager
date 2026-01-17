@@ -1,5 +1,5 @@
 {
-  "name": "worktree-cli",
+  "name": "gitwt",
   "version": "0.1.0",
   "description": "Git worktree manager - make worktrees as effortless as branches",
   "type": "module",
@@ -52,8 +52,11 @@
   "keywords": [
     "git",
     "worktree",
+    "tui",
     "cli",
     "terminal",
+    "interactive",
+    "ink",
     "bun",
     "node"
   ],
