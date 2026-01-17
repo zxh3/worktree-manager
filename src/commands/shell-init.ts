@@ -25,7 +25,7 @@ wt() {
             # Check for cd handoff (TUI selection)
             # Output format is __wt_cd__"/path/to/dir" (quoted to handle spaces)
             if [[ "$output" == __wt_cd__* ]]; then
-                eval cd "\${output#__wt_cd__}"
+                eval cd \${output#__wt_cd__}
             elif [[ -n "$output" ]]; then
                 echo "$output"
             fi
