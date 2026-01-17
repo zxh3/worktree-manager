@@ -79,6 +79,7 @@ wt current --branch               # Branch name
 | `d` | Delete worktree |
 | `r` | Rename worktree |
 | `i` | Show details |
+| `s` | Settings |
 | `q` | Quit |
 
 ## Status Indicators
@@ -88,14 +89,26 @@ The TUI shows status for each worktree:
 | Status | Meaning |
 |--------|---------|
 | `dirty` | Uncommitted changes |
-| `ahead` | Commits to push |
-| `behind` | Commits to pull |
+| `ahead` | Commits ahead of comparison branch |
+| `behind` | Commits behind comparison branch |
 | `diverged` | Both ahead and behind |
-| `synced` | Clean and up-to-date |
-| `merged` | Branch merged, can be cleaned up |
+| `synced` | Up-to-date with comparison branch |
+| `merged` | Branch merged into comparison branch |
 | `stale` | No commits in 30+ days |
 
-Sync indicators show commit counts: `+3` (ahead) `-2` (behind)
+Sync status compares against `origin/main` by default (using local refs—no fetch). Falls back to `origin/master`, then local `main`/`master` if remote doesn't exist.
+
+Press `i` on a worktree to see which branch it's comparing against (e.g., `↑3 ahead (vs origin/main)`).
+
+To customize the comparison branch, press `s` to open Settings or edit `~/.config/wt/config.json`:
+
+```json
+{
+  "defaults": {
+    "comparisonBranch": "origin/develop"
+  }
+}
+```
 
 ## How It Works
 
