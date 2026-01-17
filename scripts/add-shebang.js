@@ -11,13 +11,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const cliPath = join(__dirname, "..", "dist", "cli.js");
 
 const shebang = "#!/usr/bin/env node\n";
-const content = readFileSync(cliPath, "utf-8");
+let content = readFileSync(cliPath, "utf-8");
 
-// Only add shebang if not already present
-if (!content.startsWith("#!")) {
-  writeFileSync(cliPath, shebang + content);
-  console.log("Added shebang to dist/cli.js");
+// Replace any existing shebang (bun adds #!/usr/bin/env bun)
+if (content.startsWith("#!")) {
+  content = content.replace(/^#!.*\n/, "");
 }
+writeFileSync(cliPath, shebang + content);
+console.log("Set shebang to node in dist/cli.js");
 
 // Make executable
 chmodSync(cliPath, 0o755);
