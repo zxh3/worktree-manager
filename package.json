@@ -1,6 +1,6 @@
 {
   "name": "@kianax/wt",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Git worktree manager - make worktrees as effortless as branches",
   "type": "module",
   "main": "dist/cli.js",
@@ -8,7 +8,8 @@
     "wt": "dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "dev": "bun run src/cli.ts",
