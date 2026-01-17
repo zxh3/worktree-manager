@@ -11,11 +11,10 @@ A fast, interactive TUI for managing git worktrees. Makes worktrees as effortles
 npm install -g @kianax/wt
 ```
 
-Or build from source (requires [Bun](https://bun.sh)):
+Or with [Bun](https://bun.sh):
 
 ```bash
-bun install && bun run build
-cp wt /usr/local/bin/
+bun install && bun link
 ```
 
 ## Shell Integration
