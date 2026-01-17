@@ -2,6 +2,9 @@
 
 A fast, interactive TUI for managing git worktrees. Makes worktrees as effortless as branches.
 
+<img width="968" height="186" alt="image" src="https://github.com/user-attachments/assets/cdfbd1e0-ad2e-4488-8a42-7ab847db0458" />
+
+
 ## Install
 
 ```bash
