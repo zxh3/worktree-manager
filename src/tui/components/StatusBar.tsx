@@ -32,7 +32,11 @@ export function StatusBar() {
         <Text dimColor>[</Text>
         <Text color={theme.accent}>i</Text>
         <Text dimColor>]</Text>
-        <Text dimColor> info</Text>
+        <Text dimColor> info </Text>
+        <Text dimColor>[</Text>
+        <Text color={theme.accent}>s</Text>
+        <Text dimColor>]</Text>
+        <Text dimColor> settings</Text>
       </Text>
     </Box>
   );

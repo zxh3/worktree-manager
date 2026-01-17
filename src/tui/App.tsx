@@ -9,11 +9,18 @@ import { CreateDialog } from "./components/CreateDialog";
 import { DeleteConfirm } from "./components/DeleteConfirm";
 import { DetailsView } from "./components/DetailsView";
 import { RenameDialog } from "./components/RenameDialog";
+import { SettingsDialog } from "./components/SettingsDialog";
 import { StatusBar } from "./components/StatusBar";
 import { WorktreeList } from "./components/WorktreeList";
 import { useWorktrees } from "./hooks/useWorktrees";
 
-type DialogType = "none" | "create" | "delete" | "rename" | "details";
+type DialogType =
+  | "none"
+  | "create"
+  | "delete"
+  | "rename"
+  | "details"
+  | "settings";
 
 interface AppProps {
   repoName: string;
@@ -21,7 +28,7 @@ interface AppProps {
   onSelect: (path: string) => void;
 }
 
-export function App({ repoName: _repoName, currentPath, onSelect }: AppProps) {
+export function App({ repoName, currentPath, onSelect }: AppProps) {
   const { exit } = useApp();
   const { worktrees, isLoading, error, refresh } = useWorktrees();
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -89,6 +96,10 @@ export function App({ repoName: _repoName, currentPath, onSelect }: AppProps) {
       }
       if (input === "i" && selectedWorktree) {
         setActiveDialog("details");
+        return;
+      }
+      if (input === "s") {
+        setActiveDialog("settings");
         return;
       }
 
@@ -181,6 +192,17 @@ export function App({ repoName: _repoName, currentPath, onSelect }: AppProps) {
           onClose={handleDialogClose}
           onSelect={() => {
             setDestinationPath(selectedWorktree.path);
+            setActiveDialog("none");
+          }}
+        />
+      )}
+
+      {activeDialog === "settings" && (
+        <SettingsDialog
+          repoId={repoName}
+          onClose={handleDialogClose}
+          onSaved={() => {
+            refresh();
             setActiveDialog("none");
           }}
         />
