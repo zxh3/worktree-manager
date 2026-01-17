@@ -1,6 +1,6 @@
 {
   "name": "@kianax/wt",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Git worktree manager - make worktrees as effortless as branches",
   "type": "module",
   "main": "dist/cli.js",
@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "bun run src/cli.ts",
     "build": "bun build ./src/cli.ts --compile --outfile wt",
-    "build:node": "bun build ./src/cli.ts --outdir dist --target node --format esm && node scripts/add-shebang.js",
+    "build:node": "bun build ./src/cli.ts --outdir dist --target node --format esm --minify && node scripts/add-shebang.js",
     "prepublishOnly": "npm run build:node",
     "test": "bun test",
     "test:watch": "bun test --watch",
