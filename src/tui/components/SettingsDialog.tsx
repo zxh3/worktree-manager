@@ -7,6 +7,8 @@ import { useEffect, useState } from "react";
 import {
   type Config,
   ConfigSchema,
+  type HookCommand,
+  type HookType,
   loadGlobalConfig,
   saveGlobalConfig,
 } from "../../lib/config";
@@ -24,9 +26,17 @@ type FieldId =
   | "defaults.branchPrefix"
   | "defaults.staleDays"
   | "defaults.comparisonBranch"
+  | "hooks.post-create"
+  | "hooks.post-select"
+  | "hooks.post-delete"
+  | "hooks.post-rename"
   | `repos.${string}.branchPrefix`
   | `repos.${string}.base`
   | `repos.${string}.comparisonBranch`
+  | `repos.${string}.hooks.post-create`
+  | `repos.${string}.hooks.post-select`
+  | `repos.${string}.hooks.post-delete`
+  | `repos.${string}.hooks.post-rename`
   | "addRepo";
 
 const FIELD_ORDER: FieldId[] = [
@@ -35,7 +45,65 @@ const FIELD_ORDER: FieldId[] = [
   "defaults.branchPrefix",
   "defaults.staleDays",
   "defaults.comparisonBranch",
+  "hooks.post-create",
+  "hooks.post-select",
+  "hooks.post-delete",
+  "hooks.post-rename",
 ];
+
+const HOOK_TYPES: HookType[] = [
+  "post-create",
+  "post-select",
+  "post-delete",
+  "post-rename",
+];
+
+/**
+ * Format a hook configuration for display in the UI
+ */
+function formatHookForDisplay(hook: HookCommand | undefined): string {
+  if (!hook) return "(not set)";
+  if (typeof hook === "string") return hook;
+  if (Array.isArray(hook)) return hook.join("\n");
+  // Object format - extract commands
+  const cmds =
+    typeof hook.commands === "string"
+      ? hook.commands
+      : hook.commands.join("\n");
+  return cmds;
+}
+
+/**
+ * Convert hook value to array of command lines
+ */
+function hookToLines(hook: HookCommand | undefined): string[] {
+  if (!hook) return [""];
+  if (typeof hook === "string") return [hook];
+  if (Array.isArray(hook)) return hook.length > 0 ? hook : [""];
+  // Object format
+  const cmds = hook.commands;
+  if (typeof cmds === "string") return [cmds];
+  return cmds.length > 0 ? cmds : [""];
+}
+
+/**
+ * Normalize hook value for saving - returns string, string[], or undefined
+ */
+function normalizeHookValue(lines: string[]): string | string[] | undefined {
+  const filtered = lines.filter((v) => v.trim());
+  if (filtered.length === 0) return undefined;
+  if (filtered.length === 1) return filtered[0];
+  return filtered;
+}
+
+/**
+ * Check if a field is a hook field
+ */
+function isHookField(fieldId: FieldId): boolean {
+  return (
+    fieldId.startsWith("hooks.") || /^repos\..+\.hooks\.post-\w+$/.test(fieldId)
+  );
+}
 
 const STRATEGIES = ["centralized", "sibling"] as const;
 
@@ -51,6 +119,9 @@ export function SettingsDialog({
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [repoOverrideIds, setRepoOverrideIds] = useState<string[]>([]);
+  // Multi-line hook editing state
+  const [editLines, setEditLines] = useState<string[]>([]);
+  const [editLineIndex, setEditLineIndex] = useState(0);
 
   // Load config on mount
   useEffect(() => {
@@ -69,6 +140,10 @@ export function SettingsDialog({
           `repos.${id}.branchPrefix`,
           `repos.${id}.base`,
           `repos.${id}.comparisonBranch`,
+          `repos.${id}.hooks.post-create`,
+          `repos.${id}.hooks.post-select`,
+          `repos.${id}.hooks.post-delete`,
+          `repos.${id}.hooks.post-rename`,
         ] as FieldId[],
     ),
     "addRepo",
@@ -88,18 +163,53 @@ export function SettingsDialog({
     if (fieldId === "defaults.comparisonBranch")
       return config.defaults.comparisonBranch ?? "";
 
-    // Repo override fields
+    // Global hooks
+    if (fieldId.startsWith("hooks.")) {
+      const hookType = fieldId.replace("hooks.", "") as HookType;
+      const hook = config.hooks?.[hookType];
+      return formatHookForDisplay(hook);
+    }
+
+    // Repo hook overrides
+    const repoHookMatch = fieldId.match(/^repos\.(.+)\.hooks\.(post-\w+)$/);
+    if (repoHookMatch) {
+      const [, repoIdMatch, hookType] = repoHookMatch;
+      const hook = config.repos?.[repoIdMatch]?.hooks?.[hookType as HookType];
+      return formatHookForDisplay(hook);
+    }
+
+    // Repo override fields (non-hook)
     const match = fieldId.match(
       /^repos\.(.+)\.(branchPrefix|base|comparisonBranch)$/,
     );
     if (match) {
-      const [, repoId, field] = match;
-      const repoConfig = config.repos?.[repoId];
+      const [, repoIdMatch, field] = match;
+      const repoConfig = config.repos?.[repoIdMatch];
       if (!repoConfig) return "";
       return (repoConfig as Record<string, string | undefined>)[field] ?? "";
     }
 
     return "";
+  }
+
+  // Get hook config for a field
+  function getHookConfig(fieldId: FieldId): HookCommand | undefined {
+    if (!config) return undefined;
+
+    // Global hooks
+    if (fieldId.startsWith("hooks.")) {
+      const hookType = fieldId.replace("hooks.", "") as HookType;
+      return config.hooks?.[hookType];
+    }
+
+    // Repo hook overrides
+    const repoHookMatch = fieldId.match(/^repos\.(.+)\.hooks\.(post-\w+)$/);
+    if (repoHookMatch) {
+      const [, repoIdMatch, hookType] = repoHookMatch;
+      return config.repos?.[repoIdMatch]?.hooks?.[hookType as HookType];
+    }
+
+    return undefined;
   }
 
   // Update config with a new value
@@ -128,7 +238,7 @@ export function SettingsDialog({
         comparisonBranch: value || undefined,
       };
     } else {
-      // Repo override fields
+      // Repo override fields (non-hook)
       const match = fieldId.match(
         /^repos\.(.+)\.(branchPrefix|base|comparisonBranch)$/,
       );
@@ -145,6 +255,66 @@ export function SettingsDialog({
     }
 
     setConfig(newConfig);
+  }
+
+  // Update hook field with array of command lines
+  function updateHookField(fieldId: FieldId, lines: string[]): void {
+    if (!config) return;
+
+    const hookValue = normalizeHookValue(lines);
+    const newConfig = { ...config };
+
+    // Global hooks
+    if (fieldId.startsWith("hooks.")) {
+      const hookType = fieldId.replace("hooks.", "") as HookType;
+      if (hookValue === undefined) {
+        // Remove hook if empty
+        const newHooks = { ...newConfig.hooks };
+        delete newHooks[hookType];
+        newConfig.hooks =
+          Object.keys(newHooks).length > 0 ? newHooks : undefined;
+      } else {
+        newConfig.hooks = {
+          ...newConfig.hooks,
+          [hookType]: hookValue,
+        };
+      }
+      setConfig(newConfig);
+      return;
+    }
+
+    // Repo hook overrides
+    const repoHookMatch = fieldId.match(/^repos\.(.+)\.hooks\.(post-\w+)$/);
+    if (repoHookMatch) {
+      const [, repoIdMatch, hookType] = repoHookMatch;
+      const existingRepo = newConfig.repos?.[repoIdMatch] ?? {};
+      const existingHooks = existingRepo.hooks ?? {};
+
+      if (hookValue === undefined) {
+        // Remove hook if empty
+        const newHooks = { ...existingHooks };
+        delete newHooks[hookType as HookType];
+        newConfig.repos = {
+          ...newConfig.repos,
+          [repoIdMatch]: {
+            ...existingRepo,
+            hooks: Object.keys(newHooks).length > 0 ? newHooks : undefined,
+          },
+        };
+      } else {
+        newConfig.repos = {
+          ...newConfig.repos,
+          [repoIdMatch]: {
+            ...existingRepo,
+            hooks: {
+              ...existingHooks,
+              [hookType]: hookValue,
+            },
+          },
+        };
+      }
+      setConfig(newConfig);
+    }
   }
 
   // Add new repo override
@@ -205,6 +375,71 @@ export function SettingsDialog({
 
     // Handle edit mode
     if (editMode) {
+      // Hook field editing (multi-line)
+      if (isHookField(selectedField)) {
+        if (key.escape) {
+          setEditMode(false);
+          setEditLines([]);
+          setEditLineIndex(0);
+          return;
+        }
+
+        if (key.return) {
+          updateHookField(selectedField, editLines);
+          setEditMode(false);
+          setEditLines([]);
+          setEditLineIndex(0);
+          return;
+        }
+
+        // Tab or + to add new command line
+        if (key.tab || input === "+") {
+          setEditLines([...editLines, ""]);
+          setEditLineIndex(editLines.length);
+          return;
+        }
+
+        // Delete current line with 'd' (only if multiple lines)
+        if (input === "d" && editLines.length > 1) {
+          const newLines = editLines.filter((_, i) => i !== editLineIndex);
+          setEditLines(newLines);
+          setEditLineIndex(Math.min(editLineIndex, newLines.length - 1));
+          return;
+        }
+
+        // Navigate lines with j/k or arrows (only in multi-line mode)
+        if (editLines.length > 1) {
+          if (
+            (input === "j" || key.downArrow) &&
+            editLineIndex < editLines.length - 1
+          ) {
+            setEditLineIndex(editLineIndex + 1);
+            return;
+          }
+          if ((input === "k" || key.upArrow) && editLineIndex > 0) {
+            setEditLineIndex(editLineIndex - 1);
+            return;
+          }
+        }
+
+        // Text editing for current line
+        if (key.backspace || key.delete) {
+          const newLines = [...editLines];
+          newLines[editLineIndex] = newLines[editLineIndex].slice(0, -1);
+          setEditLines(newLines);
+          return;
+        }
+
+        // Allow most printable characters for commands
+        if (input && input.length === 1 && /^[\x20-\x7e]$/.test(input)) {
+          const newLines = [...editLines];
+          newLines[editLineIndex] = newLines[editLineIndex] + input;
+          setEditLines(newLines);
+        }
+        return;
+      }
+
+      // Non-hook field editing
       if (key.escape) {
         setEditMode(false);
         setEditValue("");
@@ -298,6 +533,17 @@ export function SettingsDialog({
         setEditMode(true);
         return;
       }
+
+      // Hook fields use multi-line editing
+      if (isHookField(selectedField)) {
+        const hookConfig = getHookConfig(selectedField);
+        setEditLines(hookToLines(hookConfig));
+        setEditLineIndex(0);
+        setEditMode(true);
+        return;
+      }
+
+      // Regular fields
       setEditValue(getFieldValue(selectedField));
       setEditMode(true);
       return;
@@ -392,6 +638,26 @@ export function SettingsDialog({
         />
       </Box>
 
+      {/* Hooks Section */}
+      <Box marginTop={1} flexDirection="column">
+        <Text bold dimColor>
+          Hooks
+        </Text>
+        <Text dimColor>{"─".repeat(5)}</Text>
+
+        {HOOK_TYPES.map((hookType) => (
+          <HookFieldRow
+            key={hookType}
+            hookType={hookType}
+            value={getFieldValue(`hooks.${hookType}`)}
+            isSelected={selectedField === `hooks.${hookType}`}
+            isEditing={editMode && selectedField === `hooks.${hookType}`}
+            editLines={editLines}
+            editLineIndex={editLineIndex}
+          />
+        ))}
+      </Box>
+
       {/* Repository Overrides Section */}
       <Box marginTop={1} flexDirection="column">
         <Text bold dimColor>
@@ -428,6 +694,24 @@ export function SettingsDialog({
                 }
                 editValue={editValue}
               />
+              <Box marginTop={1}>
+                <Text dimColor>hooks:</Text>
+              </Box>
+              {HOOK_TYPES.map((hookType) => (
+                <HookFieldRow
+                  key={hookType}
+                  hookType={hookType}
+                  value={getFieldValue(`repos.${id}.hooks.${hookType}`)}
+                  isSelected={selectedField === `repos.${id}.hooks.${hookType}`}
+                  isEditing={
+                    editMode &&
+                    selectedField === `repos.${id}.hooks.${hookType}`
+                  }
+                  editLines={editLines}
+                  editLineIndex={editLineIndex}
+                  indented
+                />
+              ))}
             </Box>
           </Box>
         ))}
@@ -477,6 +761,18 @@ export function SettingsDialog({
         {editMode ? (
           selectedField === "paths.strategy" ? (
             <Text dimColor>{"←/→ cycle  Enter confirm  Esc cancel"}</Text>
+          ) : isHookField(selectedField) ? (
+            editLines.length > 1 ? (
+              <Text dimColor>
+                {
+                  "Type cmd  ↑/↓ lines  Tab +line  d delete  Enter done  Esc cancel"
+                }
+              </Text>
+            ) : (
+              <Text dimColor>
+                {"Type command  Tab +line  Enter done  Esc cancel"}
+              </Text>
+            )
           ) : (
             <Text dimColor>{"Type to edit  Enter confirm  Esc cancel"}</Text>
           )
@@ -533,6 +829,100 @@ function FieldRow({
           {displayValue}
         </Text>
       )}
+    </Box>
+  );
+}
+
+interface HookFieldRowProps {
+  hookType: string;
+  value: string;
+  isSelected: boolean;
+  isEditing: boolean;
+  editLines: string[];
+  editLineIndex: number;
+  indented?: boolean;
+}
+
+function HookFieldRow({
+  hookType,
+  value,
+  isSelected,
+  isEditing,
+  editLines,
+  editLineIndex,
+  indented,
+}: HookFieldRowProps) {
+  const labelWidth = indented ? 12 : 14;
+  const label = `${hookType}:`.padEnd(labelWidth);
+  const lines = value.split("\n");
+  const isMultiLine = lines.length > 1 || (isEditing && editLines.length > 1);
+
+  if (isEditing) {
+    // Single line editing
+    if (editLines.length === 1) {
+      return (
+        <Box marginLeft={indented ? 2 : 0}>
+          <Text dimColor={!isSelected}>{label}</Text>
+          <Box>
+            <Text color={theme.accent}>{editLines[0]}</Text>
+            <Text color={theme.accent}>█</Text>
+          </Box>
+        </Box>
+      );
+    }
+
+    // Multi-line editing
+    return (
+      <Box flexDirection="column" marginLeft={indented ? 2 : 0}>
+        <Box>
+          <Text dimColor>{label}</Text>
+          <Text color={theme.accent}>[{editLines.length} commands]</Text>
+        </Box>
+        {editLines.map((line, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: lines are edited in place, index is stable
+          <Box key={`edit-${i}`} marginLeft={labelWidth}>
+            <Text color={i === editLineIndex ? theme.accent : undefined}>
+              [{i + 1}] {line}
+              {i === editLineIndex ? "█" : ""}
+            </Text>
+          </Box>
+        ))}
+      </Box>
+    );
+  }
+
+  // Display mode - multi-line
+  if (isMultiLine) {
+    return (
+      <Box flexDirection="column" marginLeft={indented ? 2 : 0}>
+        <Box>
+          <Text dimColor={!isSelected}>{label}</Text>
+          <Text
+            color={isSelected ? theme.accent : undefined}
+            inverse={isSelected}
+          >
+            [{lines.length} commands]
+          </Text>
+        </Box>
+        {lines.map((line, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: display mode, lines are read-only
+          <Box key={`display-${i}`} marginLeft={labelWidth}>
+            <Text dimColor>
+              [{i + 1}] {line}
+            </Text>
+          </Box>
+        ))}
+      </Box>
+    );
+  }
+
+  // Display mode - single line
+  return (
+    <Box marginLeft={indented ? 2 : 0}>
+      <Text dimColor={!isSelected}>{label}</Text>
+      <Text color={isSelected ? theme.accent : undefined} inverse={isSelected}>
+        {value}
+      </Text>
     </Box>
   );
 }
