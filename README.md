@@ -143,6 +143,81 @@ All configuration is in `~/.config/wt/config.json`:
 
 Use `repos` to override settings for specific repositories (keyed by repo ID).
 
+## Hooks
+
+Run shell commands automatically on worktree lifecycle events.
+
+### Available Hooks
+
+| Hook | Trigger |
+|------|---------|
+| `post-create` | After creating a worktree |
+| `post-select` | After switching to a worktree |
+| `post-delete` | After deleting a worktree |
+| `post-rename` | After renaming a worktree |
+
+### Configuration
+
+Add hooks to `~/.config/wt/config.json` or use the TUI Settings (`s` key):
+
+```json
+{
+  "hooks": {
+    "post-create": "npm install",
+    "post-select": "code ."
+  }
+}
+```
+
+### Hook Formats
+
+```json
+{
+  "hooks": {
+    "post-create": "npm install",
+    "post-select": ["code .", "echo 'Ready!'"],
+    "post-delete": {
+      "commands": ["echo 'Cleaned up'"],
+      "timeout": 60,
+      "continueOnError": true
+    }
+  }
+}
+```
+
+### Environment Variables
+
+Hooks receive context via environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `WT_NAME` | Worktree directory name |
+| `WT_PATH` | Absolute path to worktree |
+| `WT_BRANCH` | Git branch name |
+| `WT_REPO_ID` | Repository identifier |
+| `WT_HOOK` | Hook type being executed |
+| `WT_OLD_NAME` | Previous name (post-rename only) |
+| `WT_OLD_PATH` | Previous path (post-rename only) |
+
+### Per-Repository Hooks
+
+Override hooks for specific repositories:
+
+```json
+{
+  "hooks": {
+    "post-create": "npm install"
+  },
+  "repos": {
+    "github.com-user-python-project": {
+      "hooks": {
+        "post-create": "pip install -e ."
+      }
+    }
+  }
+}
+```
+
 ## License
 
 MIT
