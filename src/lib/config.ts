@@ -16,6 +16,38 @@ export const GLOBAL_CONFIG_PATH = join(
   "config.json",
 );
 
+/** Hook types supported by the system */
+export type HookType =
+  | "post-create"
+  | "post-select"
+  | "post-delete"
+  | "post-rename";
+
+/** Schema for hook command configuration */
+export const HookCommandSchema = z.union([
+  z.string(),
+  z.array(z.string()),
+  z.object({
+    commands: z.union([z.string(), z.array(z.string())]),
+    timeout: z.number().positive().optional(),
+    continueOnError: z.boolean().optional(),
+  }),
+]);
+
+export type HookCommand = z.infer<typeof HookCommandSchema>;
+
+/** Schema for hooks configuration */
+export const HooksSchema = z
+  .object({
+    "post-create": HookCommandSchema.optional(),
+    "post-select": HookCommandSchema.optional(),
+    "post-delete": HookCommandSchema.optional(),
+    "post-rename": HookCommandSchema.optional(),
+  })
+  .optional();
+
+export type HooksConfig = z.infer<typeof HooksSchema>;
+
 /** Schema for per-repo overrides */
 const RepoOverrideSchema = z.object({
   branchPrefix: z
@@ -25,6 +57,7 @@ const RepoOverrideSchema = z.object({
     .optional(),
   base: z.string().optional(),
   comparisonBranch: z.string().optional(),
+  hooks: HooksSchema,
 });
 
 /** Schema for global configuration */
@@ -42,6 +75,7 @@ export const ConfigSchema = z.object({
       comparisonBranch: z.string().optional(),
     })
     .default({ branchPrefix: "", staleDays: 30 }),
+  hooks: HooksSchema,
   repos: z.record(z.string(), RepoOverrideSchema).optional(),
 });
 
@@ -103,6 +137,7 @@ export async function getConfig(
   branchPrefix: string;
   worktreeBase: string;
   comparisonBranch?: string;
+  hooks: HooksConfig;
 }> {
   const config = await loadGlobalConfig();
 
@@ -120,11 +155,22 @@ export async function getConfig(
   const comparisonBranch =
     repoOverride?.comparisonBranch ?? config.defaults.comparisonBranch;
 
+  // Resolve hooks: repo-specific hooks completely replace global hooks per hook type
+  const globalHooks = config.hooks ?? {};
+  const repoHooks = repoOverride?.hooks ?? {};
+  const hooks: HooksConfig = {
+    "post-create": repoHooks["post-create"] ?? globalHooks["post-create"],
+    "post-select": repoHooks["post-select"] ?? globalHooks["post-select"],
+    "post-delete": repoHooks["post-delete"] ?? globalHooks["post-delete"],
+    "post-rename": repoHooks["post-rename"] ?? globalHooks["post-rename"],
+  };
+
   return {
     config,
     branchPrefix,
     worktreeBase,
     comparisonBranch,
+    hooks,
   };
 }
 
