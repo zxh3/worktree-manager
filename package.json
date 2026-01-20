@@ -1,6 +1,6 @@
 {
   "name": "@kianax/wt",
-  "version": "0.1.10",
+  "version": "0.2.0",
   "description": "Git worktree manager - make worktrees as effortless as branches",
   "type": "module",
   "main": "dist/cli.js",
