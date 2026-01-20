@@ -46,11 +46,20 @@ export function useWorktrees() {
       }
 
       // First, set worktrees without status (fast initial render)
-      const initialWorktrees: WorktreeWithStatus[] = list.map((wt) => ({
-        ...wt,
-        status: [],
-      }));
-      setWorktrees(initialWorktrees);
+      // Preserve existing status during refresh to avoid flicker
+      setWorktrees((prevWorktrees) => {
+        const prevStatusMap = new Map(prevWorktrees.map((wt) => [wt.path, wt]));
+        return list.map((wt) => {
+          const prev = prevStatusMap.get(wt.path);
+          return {
+            ...wt,
+            status: prev?.status ?? [],
+            ahead: prev?.ahead,
+            behind: prev?.behind,
+            comparisonBranch: prev?.comparisonBranch,
+          };
+        });
+      });
       setIsLoading(false);
 
       // Then, load status for each worktree (slower, background)
