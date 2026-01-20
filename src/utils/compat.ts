@@ -62,6 +62,10 @@ export interface ExecResult {
   exitCode: number;
 }
 
+export interface ExecResultWithTimeout extends ExecResult {
+  timedOut?: boolean;
+}
+
 /**
  * Execute a command and return the result
  */
@@ -126,6 +130,144 @@ export async function execCommand(
         stdout: "",
         stderr: err.message,
         exitCode: 1,
+      });
+    });
+  });
+}
+
+/**
+ * Execute a shell command with timeout support
+ * Used for hook execution
+ */
+export async function execShellCommand(
+  command: string,
+  options?: {
+    cwd?: string;
+    env?: Record<string, string>;
+    timeout?: number;
+  },
+): Promise<ExecResultWithTimeout> {
+  const shell = process.env.SHELL || "/bin/sh";
+  const timeoutMs = (options?.timeout ?? 30) * 1000;
+
+  if (isBun) {
+    const proc = Bun.spawn([shell, "-c", command], {
+      cwd: options?.cwd,
+      env: { ...process.env, ...options?.env },
+      stdin: "ignore", // Close stdin to prevent shell from waiting
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+
+    // Create timeout with cleanup
+    let timedOut = false;
+    let timeoutId: Timer;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        timedOut = true;
+        proc.kill();
+        reject(new Error("timeout"));
+      }, timeoutMs);
+    });
+
+    try {
+      const [stdout, stderr] = await Promise.race([
+        Promise.all([
+          new Response(proc.stdout).text(),
+          new Response(proc.stderr).text(),
+        ]),
+        timeoutPromise,
+      ]);
+
+      // Clear timeout on success
+      clearTimeout(timeoutId!);
+
+      const exitCode = await proc.exited;
+
+      return {
+        success: exitCode === 0,
+        stdout: stdout.trim(),
+        stderr: stderr.trim(),
+        exitCode,
+        timedOut: false,
+      };
+    } catch {
+      // Clear timeout on error too
+      clearTimeout(timeoutId!);
+
+      if (timedOut) {
+        return {
+          success: false,
+          stdout: "",
+          stderr: `Command timed out after ${options?.timeout ?? 30} seconds`,
+          exitCode: 124,
+          timedOut: true,
+        };
+      }
+      throw new Error("Command execution failed");
+    }
+  }
+
+  // Node.js implementation
+  return new Promise((resolve) => {
+    const proc = spawn(shell, ["-c", command], {
+      cwd: options?.cwd,
+      env: { ...process.env, ...options?.env },
+      stdio: ["ignore", "pipe", "pipe"], // Close stdin
+    });
+
+    let stdout = "";
+    let stderr = "";
+    let timedOut = false;
+
+    const timer = setTimeout(() => {
+      timedOut = true;
+      proc.kill("SIGTERM");
+      setTimeout(() => {
+        if (!proc.killed) {
+          proc.kill("SIGKILL");
+        }
+      }, 1000);
+    }, timeoutMs);
+
+    proc.stdout?.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    proc.stderr?.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    proc.on("close", (code) => {
+      clearTimeout(timer);
+      if (timedOut) {
+        resolve({
+          success: false,
+          stdout: stdout.trim(),
+          stderr: `Command timed out after ${options?.timeout ?? 30} seconds`,
+          exitCode: 124,
+          timedOut: true,
+        });
+      } else {
+        const exitCode = code ?? 1;
+        resolve({
+          success: exitCode === 0,
+          stdout: stdout.trim(),
+          stderr: stderr.trim(),
+          exitCode,
+          timedOut: false,
+        });
+      }
+    });
+
+    proc.on("error", (err) => {
+      clearTimeout(timer);
+      resolve({
+        success: false,
+        stdout: "",
+        stderr: err.message,
+        exitCode: 1,
+        timedOut: false,
       });
     });
   });

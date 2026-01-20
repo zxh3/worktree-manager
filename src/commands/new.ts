@@ -10,6 +10,7 @@ import {
 } from "../lib/constants";
 import { getRepoInfo, isInsideGitRepo } from "../lib/git/repo";
 import { createWorktree, findWorktree } from "../lib/git/worktree";
+import { executeHook, getHookConfig } from "../lib/hooks";
 import { resolveWorktreePath } from "../lib/paths";
 import type { CreateWorktreeOptions } from "../lib/types";
 import {
@@ -73,8 +74,8 @@ export async function newWorktree(
       process.exit(1);
     }
 
-    // Get config for branch prefix
-    const { branchPrefix, worktreeBase } = await getConfig(
+    // Get config for branch prefix and hooks
+    const { branchPrefix, worktreeBase, hooks } = await getConfig(
       repoInfo.worktreeRoot,
       repoInfo.repoId,
     );
@@ -109,6 +110,17 @@ export async function newWorktree(
 
     console.log(formatSuccess(`Created worktree '${name}'`));
     console.log(formatHint(`cd to it with: wt cd ${name}`));
+
+    // Execute post-create hook
+    const hookConfig = getHookConfig(hooks, "post-create");
+    if (hookConfig) {
+      await executeHook("post-create", hookConfig, {
+        name,
+        path: worktreePath,
+        branch: options.detach ? "" : branchName,
+        repoId: repoInfo.repoId,
+      });
+    }
   } catch (error) {
     console.error(
       formatError(error instanceof Error ? error.message : String(error)),

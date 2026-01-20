@@ -12,6 +12,7 @@ import {
 } from "../../lib/constants";
 import { getRepoInfo } from "../../lib/git/repo";
 import { createWorktree } from "../../lib/git/worktree";
+import { executeHook, getHookConfig } from "../../lib/hooks";
 import { resolveWorktreePath } from "../../lib/paths";
 import { theme } from "../theme";
 
@@ -74,7 +75,7 @@ export function CreateDialog({ onClose, onCreated }: CreateDialogProps) {
         throw new Error("Not in a git repository");
       }
 
-      const { worktreeBase, branchPrefix } = await getConfig(
+      const { worktreeBase, branchPrefix, hooks } = await getConfig(
         repoInfo.worktreeRoot,
         repoInfo.repoId,
       );
@@ -111,6 +112,17 @@ export function CreateDialog({ onClose, onCreated }: CreateDialogProps) {
         }
         setIsCreating(false);
         return;
+      }
+
+      // Execute post-create hook before notifying parent
+      const hookConfig = getHookConfig(hooks, "post-create");
+      if (hookConfig) {
+        await executeHook("post-create", hookConfig, {
+          name: trimmedName,
+          path: worktreePath,
+          branch: branchName,
+          repoId: repoInfo.repoId,
+        });
       }
 
       onCreated();

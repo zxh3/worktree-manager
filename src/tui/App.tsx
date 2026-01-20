@@ -4,6 +4,9 @@
 
 import { Box, Text, useApp, useInput } from "ink";
 import { useEffect, useState } from "react";
+import { getConfig } from "../lib/config";
+import { getRepoInfo } from "../lib/git/repo";
+import { executeHook, getHookConfig } from "../lib/hooks";
 import type { WorktreeWithStatus } from "../lib/types";
 import { CreateDialog } from "./components/CreateDialog";
 import { DeleteConfirm } from "./components/DeleteConfirm";
@@ -65,11 +68,53 @@ export function App({ repoName, currentPath, onSelect }: AppProps) {
     | WorktreeWithStatus
     | undefined;
   const primaryWorktree = worktrees.find((wt) => wt.isPrimary);
+  const [isQuitting, setIsQuitting] = useState(false);
+
+  // Handle quit with post-select hook
+  async function handleQuit() {
+    if (isQuitting) return;
+
+    const destinationWorktree = worktrees.find(
+      (wt) => wt.path === destinationPath,
+    );
+
+    // Execute post-select hook if changing to a different worktree
+    if (
+      destinationPath &&
+      destinationPath !== currentPath &&
+      destinationWorktree
+    ) {
+      setIsQuitting(true);
+      try {
+        const repoInfo = await getRepoInfo();
+        if (repoInfo) {
+          const { hooks } = await getConfig(
+            repoInfo.worktreeRoot,
+            repoInfo.repoId,
+          );
+          const hookConfig = getHookConfig(hooks, "post-select");
+          if (hookConfig) {
+            await executeHook("post-select", hookConfig, {
+              name: destinationWorktree.name,
+              path: destinationWorktree.path,
+              branch: destinationWorktree.branch ?? "",
+              repoId: repoInfo.repoId,
+            });
+          }
+        }
+      } catch {
+        // Hook failures don't prevent quit
+      }
+      onSelect(destinationPath);
+    }
+
+    exit();
+  }
 
   // Handle keyboard input when no dialog is open
   useInput(
     (input, key) => {
-      if (activeDialog !== "none") return;
+      if (activeDialog !== "none" || isQuitting) return;
 
       // Navigation (wrap around)
       if (input === "j" || key.downArrow) {
@@ -105,10 +150,7 @@ export function App({ repoName, currentPath, onSelect }: AppProps) {
 
       // Quit - go to destination if different from current
       if (input === "q") {
-        if (destinationPath && destinationPath !== currentPath) {
-          onSelect(destinationPath);
-        }
-        exit();
+        handleQuit();
         return;
       }
 
@@ -118,7 +160,7 @@ export function App({ repoName, currentPath, onSelect }: AppProps) {
         return;
       }
     },
-    { isActive: activeDialog === "none" },
+    { isActive: activeDialog === "none" && !isQuitting },
   );
 
   const handleDialogClose = () => {

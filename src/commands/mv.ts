@@ -5,6 +5,7 @@
 import { getConfig } from "../lib/config";
 import { getRepoInfo, isInsideGitRepo } from "../lib/git/repo";
 import { findWorktree, moveWorktree } from "../lib/git/worktree";
+import { executeHook, getHookConfig } from "../lib/hooks";
 import { resolveWorktreePath } from "../lib/paths";
 import {
   CannotRemovePrimaryError,
@@ -56,10 +57,13 @@ export async function mv(oldName: string, newName: string): Promise<void> {
       process.exit(1);
     }
 
-    const { worktreeBase } = await getConfig(
+    const { worktreeBase, hooks } = await getConfig(
       repoInfo.worktreeRoot,
       repoInfo.repoId,
     );
+
+    // Store old path before move
+    const oldPath = oldWorktree.path;
 
     // Determine new path
     const newPath = resolveWorktreePath(repoInfo.repoId, newName, worktreeBase);
@@ -75,6 +79,19 @@ export async function mv(oldName: string, newName: string): Promise<void> {
     }
 
     console.log(formatSuccess(`Renamed worktree '${oldName}' to '${newName}'`));
+
+    // Execute post-rename hook
+    const hookConfig = getHookConfig(hooks, "post-rename");
+    if (hookConfig) {
+      await executeHook("post-rename", hookConfig, {
+        name: newName,
+        path: newPath,
+        branch: oldWorktree.branch ?? "",
+        repoId: repoInfo.repoId,
+        oldName,
+        oldPath,
+      });
+    }
   } catch (error) {
     console.error(
       formatError(error instanceof Error ? error.message : String(error)),

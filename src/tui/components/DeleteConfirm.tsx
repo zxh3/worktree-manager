@@ -4,7 +4,10 @@
 
 import { Box, Text, useInput } from "ink";
 import { useState } from "react";
+import { getConfig } from "../../lib/config";
+import { getRepoInfo } from "../../lib/git/repo";
 import { removeWorktree } from "../../lib/git/worktree";
+import { executeHook, getHookConfig } from "../../lib/hooks";
 import type { Worktree } from "../../lib/types";
 import { theme } from "../theme";
 
@@ -53,6 +56,21 @@ export function DeleteConfirm({
     setError(null);
 
     try {
+      // Get repo info for hooks
+      const repoInfo = await getRepoInfo();
+      if (!repoInfo) {
+        setError("Could not determine repository information");
+        setIsDeleting(false);
+        return;
+      }
+
+      // Store worktree info for hook (before deletion)
+      const deletedWorktreePath = worktree.path;
+      const deletedWorktreeBranch = worktree.branch ?? "";
+
+      // Get config for hooks
+      const { hooks } = await getConfig(repoInfo.worktreeRoot, repoInfo.repoId);
+
       // Run git from primary worktree to avoid issues when deleting current
       // Note: We don't auto-delete the branch - user can do that via CLI if desired
       const result = await removeWorktree(
@@ -69,6 +87,22 @@ export function DeleteConfirm({
         }
         setIsDeleting(false);
         return;
+      }
+
+      // Execute post-delete hook (from repo root, since worktree is deleted)
+      const hookConfig = getHookConfig(hooks, "post-delete");
+      if (hookConfig) {
+        await executeHook(
+          "post-delete",
+          hookConfig,
+          {
+            name: worktree.name,
+            path: deletedWorktreePath,
+            branch: deletedWorktreeBranch,
+            repoId: repoInfo.repoId,
+          },
+          repoInfo.worktreeRoot, // Run from repo root
+        );
       }
 
       // If we deleted the current worktree, move to primary
