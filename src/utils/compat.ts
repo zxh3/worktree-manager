@@ -161,7 +161,7 @@ export async function execShellCommand(
 
     // Create timeout with cleanup
     let timedOut = false;
-    let timeoutId: Timer;
+    let timeoutId: ReturnType<typeof setTimeout>;
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutId = setTimeout(() => {
         timedOut = true;
