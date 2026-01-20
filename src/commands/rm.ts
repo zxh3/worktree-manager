@@ -2,8 +2,10 @@
  * wt rm - Remove a worktree
  */
 
-import { isInsideGitRepo } from "../lib/git/repo";
+import { getConfig } from "../lib/config";
+import { getRepoInfo, isInsideGitRepo } from "../lib/git/repo";
 import { findWorktree, removeWorktree } from "../lib/git/worktree";
+import { executeHook, getHookConfig } from "../lib/hooks";
 import {
   CannotRemovePrimaryError,
   NotInRepoError,
@@ -31,6 +33,13 @@ export async function rm(name: string, options: RmOptions = {}): Promise<void> {
   }
 
   try {
+    // Get repo info for hooks
+    const repoInfo = await getRepoInfo();
+    if (!repoInfo) {
+      console.error(formatError("Could not determine repository information"));
+      process.exit(1);
+    }
+
     // Find the worktree
     const worktree = await findWorktree(name);
     if (!worktree) {
@@ -48,6 +57,13 @@ export async function rm(name: string, options: RmOptions = {}): Promise<void> {
       process.exit(1);
     }
 
+    // Store worktree info for hook (before deletion)
+    const deletedWorktreePath = worktree.path;
+    const deletedWorktreeBranch = worktree.branch ?? "";
+
+    // Get config for hooks
+    const { hooks } = await getConfig(repoInfo.worktreeRoot, repoInfo.repoId);
+
     // Remove the worktree
     const result = await removeWorktree(worktree.path, {
       force: options.force,
@@ -61,6 +77,22 @@ export async function rm(name: string, options: RmOptions = {}): Promise<void> {
     }
 
     console.log(formatSuccess(`Removed worktree '${name}'`));
+
+    // Execute post-delete hook (from repo root, since worktree is deleted)
+    const hookConfig = getHookConfig(hooks, "post-delete");
+    if (hookConfig) {
+      await executeHook(
+        "post-delete",
+        hookConfig,
+        {
+          name,
+          path: deletedWorktreePath,
+          branch: deletedWorktreeBranch,
+          repoId: repoInfo.repoId,
+        },
+        repoInfo.worktreeRoot, // Run from repo root
+      );
+    }
 
     // Handle branch deletion
     if (worktree.branch) {
